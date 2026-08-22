@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PROFILE.ZIP — 나만의 홈페이지 메인 카드</title>
+  <meta name="description" content="여러 레트로 창을 옮겨 만드는 홈페이지형 프로필 카드 편집기">
+  <link rel="icon" type="image/png" href="assets/brand-mark.png?v=profilezip">
+  <link rel="apple-touch-icon" href="assets/brand-mark.png?v=profilezip">
+  <link rel="stylesheet" href="styles.css?v=3.36.0">
+</head>
+<body>
+  <svg class="decoration-symbols" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="decor-icon-dialog" viewBox="0 0 64 64">
+        <rect class="vector-paper-surface" x="7" y="12" width="50" height="40" rx="3"/>
+        <path class="vector-highlight-fill" d="M9 14h46v10H9Z"/>
+        <path class="vector-line" d="M8 25h48"/>
+        <text class="vector-label" x="32" y="43">OK</text>
+      </symbol>
+      <symbol id="decor-icon-warning" viewBox="0 0 64 64">
+        <path class="vector-accent-surface" d="M28 9q4-7 8 0l23 41q3 6-4 6H9q-7 0-4-6Z"/>
+        <path class="vector-stroke-fill" d="M29 22h6l-1 20h-4Z"/>
+        <circle class="vector-stroke-fill" cx="32" cy="49" r="3"/>
+      </symbol>
+      <symbol id="decor-icon-cursor" viewBox="0 0 64 64">
+        <path class="vector-cursor-surface" d="M17 7v41l10-10 8 17 7-4-8-16h15Z"/>
+      </symbol>
+    </defs>
+  </svg>
+  <header class="app-header">
+    <div class="brand-lockup">
+      <img class="brand-mark" src="assets/brand-mark.png?v=profilezip" alt="" aria-hidden="true">
+      <div><h1>PROFILE.ZIP</h1><p>나만의 홈페이지 메인 카드</p></div>
+    </div>
+    <div class="header-actions">
+      <button id="undoBtn" class="icon-btn" title="실행 취소">↶</button>
+      <button id="redoBtn" class="icon-btn" title="다시 실행">↷</button>
+      <button id="saveProjectBtn">프로젝트 저장</button>
+      <button id="loadProjectBtn">불러오기</button>
+      <button id="previewBtn" class="preview-btn">미리보기</button>
+      <button id="exportPngBtn" class="primary-btn">PNG 저장</button>
+      <input id="projectFileInput" type="file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main class="app-layout">
+    <aside id="toolbox" class="toolbox panel-shell" aria-label="편집 도구">
+      <div class="panel-titlebar"><span id="toolboxTitle">CUSTOMIZE HOME</span><span id="toolboxChrome"><span class="panel-controls" aria-hidden="true"><i>−</i><i>□</i><i>×</i></span></span></div>
+      <div class="tool-tabs" role="tablist">
+        <button class="tool-tab is-active" role="tab" aria-selected="true" data-tab="background">배경</button>
+        <button class="tool-tab" role="tab" aria-selected="false" data-tab="apps">콘텐츠</button>
+        <button class="tool-tab" role="tab" aria-selected="false" data-tab="elements">장식</button>
+        <button class="tool-tab" role="tab" aria-selected="false" data-tab="frame">홈페이지</button>
+      </div>
+
+      <section class="tool-panel is-active" data-panel="background">
+        <div class="section-heading"><div><small>20 WALLPAPERS</small><h2>배경 고르기</h2></div><span id="themeCount" class="count-badge">20</span></div>
+        <p class="helper-copy">배경을 바꾸면 현재 비율에 맞는 이미지와 창 색상이 함께 적용돼요.</p>
+        <div id="themeGrid" class="theme-grid" aria-label="기본 배경 20종"></div>
+        <label class="upload-button">＋ 내 사진을 배경으로<input id="backgroundUpload" type="file" accept="image/*" hidden></label>
+        <section id="customThemePanel" class="custom-theme-panel" hidden>
+          <div class="custom-theme-heading"><div><small>COLOR KIT</small><b>테마 세부 색상</b></div><span>한 번에 적용</span></div>
+          <p>위의 색상 칸을 누르거나 여기서 여섯 가지 역할색을 한 번에 조정할 수 있어요.</p>
+          <div class="custom-theme-colors">
+            <label>창 바탕<input id="customPaletteWindow" type="color"></label>
+            <label>제목 표시줄<input id="customPaletteTitleBar" type="color"></label>
+            <label>테두리<input id="customPaletteBorder" type="color"></label>
+            <label>글자<input id="customPaletteText" type="color"></label>
+            <label>포인트<input id="customPaletteAccent" type="color"></label>
+            <label>그림자<input id="customPaletteShadow" type="color"></label>
+          </div>
+          <label class="custom-theme-scope">적용 범위<select id="customPaletteScope"><option value="page">현재 페이지만</option><option value="all">모든 페이지</option></select></label>
+          <button id="applyCustomPalette" class="apply-custom-theme" type="button">테마 색상 일괄 적용</button>
+        </section>
+        <details class="advanced-details">
+          <summary>배경 미세 조정</summary>
+          <div class="simple-controls">
+            <label id="backgroundFitRow" hidden>사진 표시<select id="backgroundFit"><option value="cover">화면 채우기</option><option value="contain">전체 보기</option></select></label>
+            <label>흐리기<input id="backgroundBlur" type="range" min="0" max="14" value="1"><output id="blurOutput">1px</output></label>
+            <label>밝기<input id="backgroundBrightness" type="range" min="35" max="115" value="86"><output id="brightnessOutput">86%</output></label>
+            <label>색상 덮기<input id="overlayColor" type="color" value="#07152d"></label>
+            <label>덮기 농도<input id="overlayOpacity" type="range" min="0" max="100" value="18"><output id="overlayOutput">18%</output></label>
+          </div>
+        </details>
+        <select id="ratioSelect" aria-label="캔버스 비율" hidden><option value="1:1">1:1</option><option value="4:3">4:3</option><option value="3:4">3:4</option></select>
+        <div id="paletteGrid" class="palette-grid" hidden></div>
+      </section>
+
+      <section class="tool-panel" data-panel="apps">
+        <div class="section-heading"><div><small>CONTENT WINDOWS</small><h2>콘텐츠 창</h2></div></div>
+        <p class="helper-copy">기본 콘텐츠 창 7개와 장식 독이 놓여 있어요. 필요한 창을 더 추가하거나 선택해 내용을 바꾸세요.</p>
+        <div class="preset-list compact-presets">
+          <button class="preset-card" data-add-item="profile"><span>▧</span><b>프로필</b><small>사진·이름·소개</small></button>
+          <button class="preset-card" data-add-item="gallery"><span>▦</span><b>사진첩</b><small>큰 사진·1~6장 배열</small></button>
+          <button class="preset-card" data-add-item="note"><span>T</span><b>소개 메모</b><small>제목과 본문</small></button>
+          <button class="preset-card" data-add-item="music"><span>▶</span><b>음악</b><small>곡과 아티스트</small></button>
+          <button class="preset-card" data-add-item="tags"><span>#</span><b>태그</b><small>쉼표로 입력</small></button>
+          <button class="preset-card" data-add-item="recent"><span>☷</span><b>최근 글</b><small>짧은 로그 목록</small></button>
+          <button class="preset-card" data-add-item="messenger"><span>▤</span><b>메신저</b><small>상대와 나의 대화</small></button>
+          <button class="preset-card" data-add-item="video"><span>◉</span><b>영상 통화</b><small>통화 중인 한 장면</small></button>
+        </div>
+        <details class="advanced-details window-details">
+          <summary>창 디자인 바꾸기</summary>
+          <div class="default-style-block">
+            <div><small>WINDOW STYLE</small><b>새 창의 기본 모양</b></div>
+            <div id="defaultWindowStyleGrid" class="window-style-grid compact" aria-label="기본 창 모양"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="tool-panel" data-panel="elements">
+        <div class="section-heading"><div><small>DESKTOP DETAILS</small><h2>장식 요소</h2></div></div>
+        <p class="helper-copy">홈페이지 분위기를 더하는 작은 소품이에요.</p>
+        <div class="element-grid primary-decoration-grid">
+          <button data-add-item="folder"><span class="element-preview" data-pixel-icon="folder"></span><b>폴더</b></button>
+          <button data-add-item="file"><span class="element-preview" data-pixel-icon="file"></span><b>문서 파일</b></button>
+          <button data-add-item="imageapp"><span class="element-preview" data-pixel-icon="imageapp"></span><b>이미지</b></button>
+          <button data-add-item="videoapp"><span class="element-preview" data-pixel-icon="videoapp"></span><b>비디오</b></button>
+          <button data-add-item="camera"><span class="element-preview" data-pixel-icon="camera"></span><b>카메라</b></button>
+          <button data-add-item="notification"><span class="element-preview" data-pixel-icon="notification"></span><b>알림</b></button>
+          <button data-add-item="chat"><span class="element-preview" data-pixel-icon="chat"></span><b>채팅</b></button>
+          <button data-add-item="appmusic"><span class="element-preview" data-pixel-icon="appmusic"></span><b>음악</b></button>
+          <button data-add-item="paint"><span class="element-preview" data-pixel-icon="paint"></span><b>그림판</b></button>
+          <button data-add-item="internet"><span class="element-preview" data-pixel-icon="internet"></span><b>인터넷</b></button>
+          <button data-add-item="memory"><span class="element-preview" data-pixel-icon="memory"></span><b>메모리</b></button>
+          <button data-add-item="trash"><span class="element-preview" data-pixel-icon="trash"></span><b>쓰레기통</b></button>
+        </div>
+        <button class="rack-preset-card" data-add-item="rack"><span class="rack-preview mini-rack"><i data-pixel-icon="folder"></i><i data-pixel-icon="chat"></i><i data-pixel-icon="memory"></i></span><span><b>장식 배열</b><small>픽셀 아이콘을 독·투명 배경·창 안에 정렬</small></span></button>
+        <div class="system-decoration-heading"><small>SYSTEM PROPS</small><b>별도 시스템 소품</b></div>
+        <div class="element-grid system-decoration-grid">
+          <button data-add-item="dialog"><span class="element-preview"><span class="dialog-preview" aria-hidden="true"><i></i><b>OK</b></span></span><b>확인 창</b></button>
+          <button data-add-item="warning"><span class="element-preview"><svg class="vector-icon"><use href="#decor-icon-warning"></use></svg></span><b>경고</b></button>
+          <button data-add-item="cursor"><span class="element-preview"><svg class="vector-icon"><use href="#decor-icon-cursor"></use></svg></span><b>커서</b></button>
+        </div>
+      </section>
+
+      <section class="tool-panel" data-panel="frame">
+        <div class="section-heading"><div><small>HOMEPAGE CHROME</small><h2>홈페이지 프레임</h2></div></div>
+        <p class="helper-copy">상단 메뉴와 하단 상태줄로 한 장의 이미지를 홈페이지처럼 묶어줘요.</p>
+        <label class="switch-row"><input id="frameEnabled" type="checkbox" checked><span>홈페이지 프레임 표시</span></label>
+        <div class="frame-presets">
+          <button data-frame-preset="web">WEB HEADER</button><button data-frame-preset="ticker">TICKER</button>
+          <button data-frame-preset="status">STATUS BAR</button><button data-frame-preset="minimal">MINIMAL</button>
+        </div>
+        <div class="stacked-fields">
+          <label>상단 문구<input id="frameTopText" type="text"></label>
+          <label>메뉴 문구<input id="frameMenuText" type="text" placeholder="home / profile / gallery"></label>
+          <label>하단 문구<input id="frameBottomText" type="text"></label>
+          <label>글자색<input id="frameTextColor" type="color" value="#203b39"></label>
+          <select id="frameScope" hidden><option value="page">현재 페이지만</option></select>
+        </div>
+      </section>
+
+      <section id="contextualEditor" class="contextual-editor" hidden>
+        <button id="contextEditorBack" class="context-back" type="button">← 콘텐츠 목록</button>
+        <div id="quickEditor" class="quick-editor"></div>
+      </section>
+    </aside>
+
+    <section class="editor-area" aria-label="프로필 카드 편집 캔버스">
+      <div class="canvas-toolbar">
+        <div class="ratio-switch" role="group" aria-label="출력 비율">
+          <button type="button" data-ratio="1:1">1:1</button><button type="button" data-ratio="4:3">4:3</button><button type="button" data-ratio="3:4">3:4</button>
+        </div>
+        <button id="resetLayoutBtn" type="button" class="reset-layout-btn">추천 배치로 정리</button>
+        <span class="toolbar-divider"></span>
+        <div id="pageTabs" class="page-tabs"></div>
+        <button id="addPageBtn" class="square-btn" title="페이지 추가">＋</button>
+        <button id="duplicatePageBtn">복제</button>
+        <button id="deletePageBtn" class="danger-text">삭제</button>
+        <button id="freeArrangeBtn" hidden></button><button id="alignedArrangeBtn" hidden></button>
+        <span class="toolbar-spacer"></span>
+        <label class="zoom-control">ZOOM <input id="zoomRange" type="range" min="35" max="100" value="70"><output id="zoomOutput">70%</output></label>
+      </div>
+      <div class="canvas-scroll"><div id="canvasStage" class="canvas-stage" tabindex="0" aria-label="홈페이지형 프로필 카드"></div></div>
+      <div class="selection-strip"><span id="selectionBreadcrumb">PAGE 01 · 4:3</span><span>내용은 모든 비율에 공유 · 위치와 크기는 비율별 저장 · Alt 자유 이동</span></div>
+    </section>
+  </main>
+
+  <div id="previewOverlay" class="preview-overlay" data-backdrop="dark" role="dialog" aria-modal="true" aria-label="최종 화면 미리보기" hidden>
+    <div class="preview-controls">
+      <div class="preview-backdrop-switch" role="group" aria-label="검수 배경">
+        <button type="button" data-preview-backdrop="dark" aria-pressed="true"><span class="preview-swatch dark"></span>어두운 배경</button>
+        <button type="button" data-preview-backdrop="light" aria-pressed="false"><span class="preview-swatch light"></span>흰 배경</button>
+      </div>
+      <span id="previewStatus" class="preview-status" aria-live="polite">고화질 미리보기를 만들고 있습니다…</span>
+      <button id="previewCloseBtn" class="preview-close" type="button" aria-label="미리보기 닫기">×</button>
+    </div>
+    <img id="previewImage" class="preview-image" alt="현재 페이지의 최종 저장 미리보기" hidden>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pixel-icons.js?v=3.36.0"></script>
+  <script type="module" src="app.js?v=3.36.0"></script>
+</body>
+</html>

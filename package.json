@@ -1,0 +1,10 @@
+{
+  "name": "profile-zip",
+  "version": "3.36.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs"
+  }
+}
