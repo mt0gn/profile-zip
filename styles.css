@@ -696,6 +696,52 @@ body.is-previewing { overflow:hidden; }
 .chrome-frameless .messenger-body { padding:8px 9px; background:color-mix(in srgb,var(--item-paper) 94%,var(--item-highlight)); border:1px solid var(--item-border); }
 .selection-strip span:last-child { text-align:right; }
 
+/* Final canvas typography: keep the editor chrome compact while making the
+   exported page readable when it is viewed below its native resolution. */
+.window-titlebar { font-size:13px; }
+.chrome-y2k .window-titlebar { font-size:12px; }
+.window-menu { font-size:11px; }
+
+.id-card-header b { font-size:8px; }
+.id-card-name small,
+.id-card-info dt { font-size:10px; }
+.id-card-info dd { font-size:14px; }
+.id-card-photo > span { font-size:8px; }
+.profile-card-design .id-card-header { font-size:8px; }
+.profile-card-design .id-card-header strong { font-size:10px; }
+.profile-card-horizontal .id-card-header,
+.profile-card-vertical .id-card-header { font-size:8px; }
+.profile-card-horizontal .id-card-header strong,
+.profile-card-vertical .id-card-header strong { font-size:11px; }
+
+.tag-section h3 { font-size:14px; }
+.tag-window-body .tag-row span { font-size:14px; }
+.gallery-file small { font-size:11px; }
+.note-body h3 { font-size:18px; }
+.note-body p { font-size:15px; }
+.track-title { font-size:17px; }
+.track-artist { font-size:13px; }
+.vector-decoration-label,
+.desktop-label { font-size:11px; }
+
+.recent-body li { font-size:11px; line-height:1.25; }
+.recent-body small { font-size:9px; }
+.messenger-contact b { font-size:11px; }
+.messenger-contact small { font-size:9px; }
+.message-bubble { font-size:13px; }
+.message-empty,
+.message-input { font-size:9px; }
+.video-call-image.placeholder { font-size:11px; }
+.video-person b { font-size:13px; }
+.video-person span { font-size:10px; }
+.video-self-image.placeholder { font-size:9px; }
+
+.notification-card b { font-size:16px; }
+.notification-card small { font-size:11px; }
+.dialog-bar { font-size:11px; }
+.dialog-content { font-size:12px; }
+.dialog-content button { font-size:11px; }
+
 /* Guided creation flow: style → layout → detailed editor. */
 .setup-flow { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:22px; }
 .setup-flow[hidden] { display:none; }
