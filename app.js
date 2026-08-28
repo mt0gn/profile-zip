@@ -602,7 +602,10 @@ function designPhotoVerticalInset(item) {
   const chromeInset = 19; // 8px padding on each side + 1.5px border on each side.
   const contentWidth = Math.max(0, cardWidth - chromeInset);
   const contentHeight = Math.max(0, cardHeight - chromeInset);
-  const photoWidth = Math.min(170, contentWidth * .28);
+  // The design card keeps the portrait at 28% of the usable card width.
+  // Capping this at 170px made only the outer card grow during resizing,
+  // leaving the portrait and the information panel stranded in empty space.
+  const photoWidth = contentWidth * .28;
   const photoHeight = photoWidth * 9 / 7;
   return Math.max(0, (contentHeight - photoHeight) / 2);
 }
@@ -808,9 +811,10 @@ function itemMarkup(item) {
     const layout = profileCardLayout(item);
     const density = profileCardDensity(item);
     const serial = profileCardNumber(item);
+    const nicknameHasHangul = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(String(d.nickname || ""));
     const photo = `<div class="id-card-photo">${imageOrPlaceholder(d.image, "profile-photo", "3.5 × 4.5", d.imageTransform)}<span>ID PHOTO</span></div>`;
     const info = `<section class="id-card-info"><div class="id-card-name"><small>NAME</small><h3>${escapeHtml(d.nickname)}</h3></div><dl><div><dt>ACCOUNT</dt><dd>${escapeHtml(d.handle)}</dd></div><div class="id-card-message"><dt>PROFILE</dt><dd>${escapeHtml(d.bio)}</dd></div></dl></section>`;
-    const card = `<article class="profile-id-card profile-card-${layout} profile-card-${density}"><header class="id-card-header"><strong>PROFILE.ZIP</strong><span>IDENTITY CARD</span><b>${serial}</b></header><div class="id-card-design-name"><small>NICKNAME</small><strong>${escapeHtml(d.nickname)}</strong></div>${photo}${info}</article>`;
+    const card = `<article class="profile-id-card profile-card-${layout} profile-card-${density}${nicknameHasHangul ? " id-card-name-hangul" : ""}"><header class="id-card-header"><strong>PROFILE.ZIP</strong><span>IDENTITY CARD</span><b>${serial}</b></header><div class="id-card-design-name"><small>NICKNAME</small><strong>${escapeHtml(d.nickname)}</strong></div>${photo}${info}</article>`;
     return card;
   }
   if (item.type === "gallery") {
