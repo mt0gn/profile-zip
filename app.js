@@ -804,6 +804,24 @@ function fitBoxAspect(box, normalizedAspect) {
   };
 }
 function fitProfileBoxAspect(box, layout, ratio) { return fitBoxAspect(box, profileCardNormalizedAspect(layout, ratio)); }
+function enforceLiveProfileAspect(item, ratio = state.ratio) {
+  if (item.type !== "profile") return false;
+  const layout = profileCardLayout(item, ratio);
+  const normalizedAspect = profileCardNormalizedAspect(layout, ratio);
+  const width = clamp(Number(item.w) || .20, .05, .92);
+  const expectedHeight = width / normalizedAspect;
+  const fitted = fitProfileBoxAspect({
+    x: Number(item.x) || 0,
+    y: Number(item.y) || 0,
+    w: width,
+    h: expectedHeight,
+  }, layout, ratio);
+  const changed = ["x", "y", "w", "h"].some((key) => Math.abs((Number(item[key]) || 0) - fitted[key]) > .0001);
+  if (changed) Object.assign(item, fitted);
+  item.layouts ||= {};
+  item.layouts[ratio] = { x: item.x, y: item.y, w: item.w, h: item.h };
+  return changed;
+}
 function fitDecorationBoxAspect(box, type, ratio) { return fitBoxAspect(box, decorationNormalizedAspect(type, ratio)); }
 function fitFreeDialogBox(box, ratio) {
   const dimensions = dimensionsForRatio(ratio);
@@ -1297,6 +1315,7 @@ function renderCanvas() {
   const overlay = document.createElement("div"); overlay.className = "canvas-overlay"; overlay.style.background = page.background.overlayColor; overlay.style.opacity = page.background.overlayOpacity / 100; stage.append(overlay);
   renderFrame(stage, page);
   page.items.forEach((item, index) => {
+    enforceLiveProfileAspect(item);
     const element = document.createElement("div"); element.className = `canvas-item item-${item.type}${item.id === state.selectedItemId ? " is-selected" : ""}`; element.dataset.itemId = item.id; element.dataset.label = item.title; element.style.cssText = `${itemCssVariables(item, page)};z-index:${10 + index}`; element.innerHTML = itemMarkup(item);
     element.addEventListener("pointerdown", (event) => { if (event.target.closest(".resize-handle")) return; startDrag(event, item.id); });
     if (item.id === state.selectedItemId) { const handle = document.createElement("span"); handle.className = "resize-handle"; handle.addEventListener("pointerdown", (event) => startResize(event, item.id)); element.append(handle); }
