@@ -83,7 +83,7 @@
             <label>덮기 농도<input id="overlayOpacity" type="range" min="0" max="100" value="18"><output id="overlayOutput">18%</output></label>
           </div>
         </details>
-        <select id="ratioSelect" aria-label="캔버스 비율" hidden><option value="1:1">1:1</option><option value="4:3">4:3</option><option value="3:4">3:4</option></select>
+        <select id="ratioSelect" aria-label="캔버스 비율" hidden><option value="1:1">1:1</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="custom">자유 규격</option></select>
         <div id="paletteGrid" class="palette-grid" hidden></div>
       </section>
 
@@ -161,7 +161,13 @@
     <section class="editor-area" aria-label="프로필 카드 편집 캔버스">
       <div class="canvas-toolbar">
         <div class="ratio-switch" role="group" aria-label="출력 비율">
-          <button type="button" data-ratio="1:1">1:1</button><button type="button" data-ratio="4:3">4:3</button><button type="button" data-ratio="3:4">3:4</button>
+          <button type="button" data-ratio="1:1">1:1</button><button type="button" data-ratio="4:3">4:3</button><button type="button" data-ratio="3:4">3:4</button><button type="button" data-ratio="custom">자유</button>
+        </div>
+        <div id="customSizeControl" class="custom-size-control" hidden>
+          <label><span>가로</span><input id="customCanvasWidth" type="number" min="480" max="2000" step="10" value="1000" inputmode="numeric"></label>
+          <i aria-hidden="true">×</i>
+          <label><span>세로</span><input id="customCanvasHeight" type="number" min="480" max="2000" step="10" value="800" inputmode="numeric"></label>
+          <button id="applyCustomSizeBtn" type="button">적용</button>
         </div>
         <button id="resetLayoutBtn" type="button" class="reset-layout-btn">추천 배치로 정리</button>
         <span class="toolbar-divider"></span>

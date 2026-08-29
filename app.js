@@ -46,12 +46,16 @@ let windowDesignEditorOpen = false;
 let activeGuides = [];
 let editingPageId = null;
 const MAX_PAGE_NAME_LENGTH = 24;
+const CUSTOM_RATIO = "custom";
+const CUSTOM_DIMENSION_MIN = 480;
+const CUSTOM_DIMENSION_MAX = 2000;
+const DEFAULT_CUSTOM_DIMENSIONS = Object.freeze({ width: 1000, height: 800 });
 
 const byId = (id) => document.getElementById(id);
 const makeId = (prefix) => `${prefix}-${(++idCounter).toString(36)}`;
 
 const dom = {
-  ratioSelect: byId("ratioSelect"), undoBtn: byId("undoBtn"), redoBtn: byId("redoBtn"),
+  ratioSelect: byId("ratioSelect"), customSizeControl: byId("customSizeControl"), customCanvasWidth: byId("customCanvasWidth"), customCanvasHeight: byId("customCanvasHeight"), applyCustomSizeBtn: byId("applyCustomSizeBtn"), undoBtn: byId("undoBtn"), redoBtn: byId("redoBtn"),
   saveProjectBtn: byId("saveProjectBtn"), loadProjectBtn: byId("loadProjectBtn"), previewBtn: byId("previewBtn"), exportPngBtn: byId("exportPngBtn"), projectFileInput: byId("projectFileInput"),
   themeGrid: byId("themeGrid"), themeCount: byId("themeCount"), paletteGrid: byId("paletteGrid"),
   backgroundUpload: byId("backgroundUpload"), backgroundFit: byId("backgroundFit"),
@@ -72,6 +76,31 @@ const dom = {
 function currentTheme() { return BACKGROUND_THEMES.find((theme) => theme.id === currentPage().background.themeId) || BACKGROUND_THEMES[0]; }
 function currentPage() { return state.pages.find((page) => page.id === state.currentPageId) || state.pages[0]; }
 function selectedItem() { return currentPage().items.find((item) => item.id === state.selectedItemId) || null; }
+
+function normalizeCustomDimensions(value = {}) {
+  return {
+    width: clamp(Math.round(Number(value.width) || DEFAULT_CUSTOM_DIMENSIONS.width), CUSTOM_DIMENSION_MIN, CUSTOM_DIMENSION_MAX),
+    height: clamp(Math.round(Number(value.height) || DEFAULT_CUSTOM_DIMENSIONS.height), CUSTOM_DIMENSION_MIN, CUSTOM_DIMENSION_MAX),
+  };
+}
+function dimensionsForRatio(ratio = state?.ratio || "1:1") {
+  return ratio === CUSTOM_RATIO ? normalizeCustomDimensions(state?.customDimensions) : (RATIO_DIMENSIONS[ratio] || RATIO_DIMENSIONS["1:1"]);
+}
+function nearestPresetRatio(dimensions = dimensionsForRatio(CUSTOM_RATIO)) {
+  const target = dimensions.width / dimensions.height;
+  return Object.keys(RATIO_DIMENSIONS).reduce((best, ratio) => {
+    const candidate = RATIO_DIMENSIONS[ratio].width / RATIO_DIMENSIONS[ratio].height;
+    const bestCandidate = RATIO_DIMENSIONS[best].width / RATIO_DIMENSIONS[best].height;
+    return Math.abs(Math.log(target / candidate)) < Math.abs(Math.log(target / bestCandidate)) ? ratio : best;
+  }, "1:1");
+}
+function templateRatio(ratio = state?.ratio || "1:1") { return ratio === CUSTOM_RATIO ? nearestPresetRatio() : ratio; }
+function backgroundVariant(theme = currentTheme(), ratio = state.ratio) { return theme.variants[templateRatio(ratio)] || theme.variants["1:1"]; }
+function ratioDisplayLabel(ratio = state.ratio) {
+  if (ratio !== CUSTOM_RATIO) return ratio;
+  const dimensions = dimensionsForRatio(ratio);
+  return `자유 ${dimensions.width}×${dimensions.height}`;
+}
 
 function backgroundPreset(themeId = "alley") {
   const theme = BACKGROUND_THEMES.find((entry) => entry.id === themeId) || BACKGROUND_THEMES[0];
@@ -116,7 +145,7 @@ function itemSlot(item) {
 }
 function boxFromArray(values) { return { x: values[0], y: values[1], w: values[2], h: values[3] }; }
 function fallbackBox(item, ratio, index = 0) {
-  const dimensions = RATIO_DIMENSIONS[ratio];
+  const dimensions = dimensionsForRatio(ratio);
   if (item.type === "rack") {
     const vertical = item.data?.direction !== "horizontal";
     return vertical ? { x: .78, y: .18, w: .16, h: .48 } : { x: .22, y: .79, w: .58, h: .14 };
@@ -130,16 +159,16 @@ function fallbackBox(item, ratio, index = 0) {
     const h = w / decorationNormalizedAspect(item.type, ratio);
     return { x: .08 + (index % 4) * .035, y: .12 + (index % 6) * .045, w, h };
   }
-  const width = ratio === "3:4" ? .42 : .30;
+  const width = templateRatio(ratio) === "3:4" ? .42 : .30;
   const height = Math.min(.22, width * dimensions.width / dimensions.height * .72);
   return { x: .08 + (index % 3) * .045, y: .12 + (index % 5) * .05, w: width, h: height };
 }
 function recommendedBox(item, ratio, index = 0) {
-  const values = HOME_LAYOUTS[ratio]?.[itemSlot(item)];
+  const values = HOME_LAYOUTS[templateRatio(ratio)]?.[itemSlot(item)];
   const box = values ? boxFromArray(values) : fallbackBox(item, ratio, index);
   if (item.type === "tags") {
     const count = clamp(item.data?.sections?.length || 1, 1, 4);
-    const minimumHeight = clamp((45 + count * 48) / RATIO_DIMENSIONS[ratio].height, .10, .45);
+    const minimumHeight = clamp((45 + count * 48) / dimensionsForRatio(ratio).height, .10, .45);
     if (box.h < minimumHeight) {
       box.h = minimumHeight;
       box.y = clamp(box.y, 0, 1 - box.h);
@@ -161,14 +190,40 @@ function syncCurrentLayout(page = currentPage(), ratio = state?.ratio || "4:3") 
     item.layouts[ratio] = fitItemBoxAspect(item, { x: item.x, y: item.y, w: item.w, h: item.h }, ratio);
   });
 }
+function carryBoxBetweenCanvases(item, box, sourceDimensions, targetDimensions, targetRatio) {
+  const source = box || fallbackBox(item, targetRatio);
+  const width = clamp((Number(source.w) || .20) * sourceDimensions.width / targetDimensions.width, .01, .92);
+  const height = clamp((Number(source.h) || .20) * sourceDimensions.height / targetDimensions.height, .01, .92);
+  const carried = {
+    x: clamp((Number(source.x) || 0) * sourceDimensions.width / targetDimensions.width, 0, 1 - width),
+    y: clamp((Number(source.y) || 0) * sourceDimensions.height / targetDimensions.height, 0, 1 - height),
+    w: width,
+    h: height,
+  };
+  let fitted = fitItemBoxAspect(item, carried, targetRatio);
+  if (item.type === "messenger") fitted = fitMessengerBoxToMessages(item, fitted, targetRatio);
+  return fitted;
+}
+function carryPageLayout(page, sourceRatio, targetRatio, sourceDimensions, targetDimensions, useLiveBoxes = false) {
+  page.items.forEach((item, index) => {
+    initializeItemLayouts(item, index);
+    const sourceBox = useLiveBoxes
+      ? { x: item.x, y: item.y, w: item.w, h: item.h }
+      : clone(item.layouts[sourceRatio] || recommendedBox(item, sourceRatio, index));
+    if (item.type === "profile") {
+      item.data.cardLayouts ||= clone(DEFAULT_PROFILE_CARD_LAYOUTS);
+      item.data.cardLayouts[targetRatio] = profileCardLayout(item, sourceRatio);
+    }
+    item.layouts[targetRatio] = carryBoxBetweenCanvases(item, sourceBox, sourceDimensions, targetDimensions, targetRatio);
+  });
+}
 function applyRatioLayout(page = currentPage(), ratio = state.ratio) {
   page.items.forEach((item, index) => {
     initializeItemLayouts(item, index);
     let box = clone(item.layouts[ratio] || recommendedBox(item, ratio, index));
-    if (item.type === "messenger") {
-      box = fitMessengerBoxToMessages(item, box, ratio);
-      item.layouts[ratio] = clone(box);
-    }
+    box = fitItemBoxAspect(item, box, ratio);
+    if (item.type === "messenger") box = fitMessengerBoxToMessages(item, box, ratio);
+    item.layouts[ratio] = clone(box);
     Object.assign(item, clone(box));
   });
 }
@@ -196,7 +251,7 @@ function defaultPage(index = 1) {
   };
 }
 
-function freshState() { const page = defaultPage(); return { version: 3, ratio: "1:1", zoom: 70, currentPageId: page.id, selectedItemId: null, pages: [page] }; }
+function freshState() { const page = defaultPage(); return { version: 3, ratio: "1:1", customDimensions: clone(DEFAULT_CUSTOM_DIMENSIONS), zoom: 70, currentPageId: page.id, selectedItemId: null, pages: [page] }; }
 
 function beginTransaction() { if (!transactionSnapshot) transactionSnapshot = clone(state); }
 function commitTransaction() {
@@ -335,6 +390,8 @@ function migrateLegacyContentStructure(page) {
 
 function normalizeState(saved) {
   saved.version = 3;
+  saved.customDimensions = normalizeCustomDimensions(saved.customDimensions);
+  if (saved.ratio !== CUSTOM_RATIO && !RATIO_DIMENSIONS[saved.ratio]) saved.ratio = "1:1";
   saved.pages.forEach((page) => {
     let migratedProfileCard = false;
     migrateLegacyContentStructure(page);
@@ -366,6 +423,7 @@ function normalizeState(saved) {
       if (!item.layouts) {
         item.layouts = {};
         Object.keys(RATIO_DIMENSIONS).forEach((ratio) => { item.layouts[ratio] = ratio === saved.ratio ? { x: item.x, y: item.y, w: item.w, h: item.h } : recommendedBox(item, ratio, index); });
+        if (saved.ratio === CUSTOM_RATIO) item.layouts[CUSTOM_RATIO] = { x: item.x, y: item.y, w: item.w, h: item.h };
       }
       initializeItemLayouts(item, index);
       if (WINDOWED_TYPES.has(item.type) && !["inherit", ...WINDOW_STYLES.map((style) => style.id)].includes(item.windowStyle)) item.windowStyle = "inherit";
@@ -379,6 +437,11 @@ function normalizeState(saved) {
           if (!PROFILE_CARD_LAYOUTS.includes(item.data.cardLayouts[ratio])) item.data.cardLayouts[ratio] = DEFAULT_PROFILE_CARD_LAYOUTS[ratio];
           item.layouts[ratio] = fitProfileBoxAspect(item.layouts[ratio], item.data.cardLayouts[ratio], ratio);
         });
+        if (item.layouts[CUSTOM_RATIO]) {
+          const customLayout = PROFILE_CARD_LAYOUTS.includes(item.data.cardLayouts[CUSTOM_RATIO]) ? item.data.cardLayouts[CUSTOM_RATIO] : item.data.cardLayouts[nearestPresetRatio()];
+          item.data.cardLayouts[CUSTOM_RATIO] = customLayout;
+          item.layouts[CUSTOM_RATIO] = fitProfileBoxAspect(item.layouts[CUSTOM_RATIO], customLayout, CUSTOM_RATIO);
+        }
         if (legacyProfile) {
           migratedProfileCard = true;
           if (item.title === "MY PROFILE") item.title = "MY ID CARD";
@@ -453,7 +516,13 @@ function normalizeState(saved) {
     }
   });
   const activePage = saved.pages.find((page) => page.id === saved.currentPageId) || saved.pages[0];
-  activePage.items.forEach((item, index) => Object.assign(item, clone(item.layouts[saved.ratio] || recommendedBox(item, saved.ratio, index))));
+  if (saved.ratio === CUSTOM_RATIO) {
+    activePage.items.forEach((item, index) => {
+      item.layouts[CUSTOM_RATIO] ||= fitItemBoxAspect(item, clone(item.layouts[nearestPresetRatio()] || recommendedBox(item, CUSTOM_RATIO, index)), CUSTOM_RATIO);
+      if (item.type === "profile") item.data.cardLayouts[CUSTOM_RATIO] ||= item.data.cardLayouts[nearestPresetRatio()];
+    });
+  }
+  applyRatioLayout(activePage, saved.ratio);
   return saved;
 }
 
@@ -462,7 +531,7 @@ function renderThemeGrid() {
   const page = currentPage();
   for (const theme of BACKGROUND_THEMES) {
     const button = document.createElement("button"); button.className = `theme-card${page.background.source === "theme" && page.background.themeId === theme.id ? " is-active" : ""}`;
-    button.innerHTML = `<img src="${theme.variants[state.ratio]}" alt=""><span>${escapeHtml(theme.name)}</span>`;
+    button.innerHTML = `<img src="${backgroundVariant(theme)}" alt=""><span>${escapeHtml(theme.name)}</span>`;
     button.addEventListener("click", () => mutate(() => { page.background = backgroundPreset(theme.id); page.paletteId = `theme-${theme.id}`; page.palette = clone(theme.palette); }));
     dom.themeGrid.append(button);
   }
@@ -540,7 +609,11 @@ function renderControls() {
   dom.frameEnabled.checked = frame.enabled; dom.frameTopText.value = frame.topText; dom.frameMenuText.value = frame.menuText; dom.frameBottomText.value = frame.bottomText; dom.frameTextColor.value = frame.textColor || page.palette.border;
   document.querySelectorAll("[data-frame-preset]").forEach((button) => button.classList.toggle("is-active", button.dataset.framePreset === frame.preset));
   document.querySelectorAll("[data-ratio]").forEach((button) => button.classList.toggle("is-active", button.dataset.ratio === state.ratio));
-  dom.selectionBreadcrumb.textContent = `${page.name} · ${state.ratio}`;
+  dom.customSizeControl.hidden = state.ratio !== CUSTOM_RATIO;
+  const customDimensions = dimensionsForRatio(CUSTOM_RATIO);
+  dom.customCanvasWidth.value = customDimensions.width;
+  dom.customCanvasHeight.value = customDimensions.height;
+  dom.selectionBreadcrumb.textContent = `${page.name} · ${ratioDisplayLabel()}`;
   updateUndoButtons();
 }
 
@@ -580,6 +653,7 @@ function renderPageTabs() {
       if (page.id === state.currentPageId) return;
       syncCurrentLayout();
       state.currentPageId = page.id;
+      if (state.ratio === CUSTOM_RATIO) ensureCustomLayouts(page);
       applyRatioLayout(page, state.ratio);
       state.selectedItemId = null;
       toolboxEditMode = false;
@@ -596,7 +670,7 @@ function renderPageTabs() {
 
 function designPhotoVerticalInset(item) {
   if (item.type !== "profile" || profileCardLayout(item) !== "design") return 0;
-  const dimensions = RATIO_DIMENSIONS[state.ratio];
+  const dimensions = dimensionsForRatio();
   const cardWidth = item.w * dimensions.width;
   const cardHeight = item.h * dimensions.height;
   const chromeInset = 19; // 8px padding on each side + 1.5px border on each side.
@@ -704,14 +778,16 @@ async function setGallerySlotFile(itemId, index, file) {
 }
 function profileCardLayout(item, ratio = state.ratio) {
   const selected = item.data.cardLayouts?.[ratio];
-  return PROFILE_CARD_LAYOUTS.includes(selected) ? selected : DEFAULT_PROFILE_CARD_LAYOUTS[ratio];
+  if (PROFILE_CARD_LAYOUTS.includes(selected)) return selected;
+  const presetRatio = templateRatio(ratio);
+  return item.data.cardLayouts?.[presetRatio] || DEFAULT_PROFILE_CARD_LAYOUTS[presetRatio];
 }
 function profileCardNormalizedAspect(layout, ratio) {
-  const dimensions = RATIO_DIMENSIONS[ratio];
+  const dimensions = dimensionsForRatio(ratio);
   return PROFILE_CARD_ASPECTS[layout] * dimensions.height / dimensions.width;
 }
 function decorationNormalizedAspect(type, ratio) {
-  const dimensions = RATIO_DIMENSIONS[ratio];
+  const dimensions = dimensionsForRatio(ratio);
   return DECORATION_ASPECTS[type] * dimensions.height / dimensions.width;
 }
 function fitBoxAspect(box, normalizedAspect) {
@@ -730,7 +806,7 @@ function fitBoxAspect(box, normalizedAspect) {
 function fitProfileBoxAspect(box, layout, ratio) { return fitBoxAspect(box, profileCardNormalizedAspect(layout, ratio)); }
 function fitDecorationBoxAspect(box, type, ratio) { return fitBoxAspect(box, decorationNormalizedAspect(type, ratio)); }
 function fitFreeDialogBox(box, ratio) {
-  const dimensions = RATIO_DIMENSIONS[ratio];
+  const dimensions = dimensionsForRatio(ratio);
   const minimumWidth = 170 / dimensions.width;
   const minimumHeight = 96 / dimensions.height;
   const sourceWidth = Number(box?.w);
@@ -753,7 +829,7 @@ function fitItemBoxAspect(item, box, ratio) {
   return clone(box);
 }
 function resizeRackToContents(item, force = false) {
-  const dimensions = RATIO_DIMENSIONS[state.ratio], count = clamp(Number(item.data.count) || 4, 2, 6);
+  const dimensions = dimensionsForRatio(), count = clamp(Number(item.data.count) || 4, 2, 6);
   const vertical = item.data.direction !== "horizontal";
   const minimumWidth = (vertical ? 132 : 44 + count * 72) / dimensions.width;
   const minimumHeight = (vertical ? 44 + count * 68 : item.data.frame === "dock" ? 112 : 116) / dimensions.height;
@@ -764,7 +840,7 @@ function resizeRackToContents(item, force = false) {
   item.layouts[state.ratio] = { x: item.x, y: item.y, w: item.w, h: item.h };
 }
 function profileCardDensity(item) {
-  const dimensions = RATIO_DIMENSIONS[state.ratio];
+  const dimensions = dimensionsForRatio();
   const width = item.w * dimensions.width;
   const height = item.h * dimensions.height;
   return height < 150 || width < 245 ? "compact" : height < 245 || width < 390 ? "cozy" : "roomy";
@@ -826,7 +902,7 @@ function itemMarkup(item) {
     return windowShell(item, `gallery-body layout-${layout}`, tiles, galleryGridStyle(count, layout));
   }
   if (item.type === "note") return windowShell(item, "note-body", `<h3>${escapeHtml(d.heading)}</h3><p>${escapeHtml(d.body)}</p>`);
-  if (item.type === "music") return windowShell(item, "music-body", `<div class="album-cover">♫</div><div><div class="track-title">${escapeHtml(d.song)}</div><div class="track-artist">${escapeHtml(d.artist)}</div><div class="track-line"></div><div class="player-controls">◀ ▶ ▷</div></div>`);
+  if (item.type === "music") return windowShell(item, "music-body", `<div class="album-cover">♫</div><div><div class="track-title">${escapeHtml(d.song)}</div><div class="track-artist">${escapeHtml(d.artist)}</div><div class="track-line"></div><div class="player-controls" aria-hidden="true"><span class="transport-control transport-rewind"><i></i><i></i></span><span class="transport-control transport-play"><i></i></span><span class="transport-control transport-forward"><i></i><i></i></span></div></div>`);
   if (item.type === "tags") {
     const sections = (Array.isArray(d.sections) && d.sections.length ? d.sections : [{ heading: item.title || "TAGS", tags: d.tags || "" }]).slice(0, 4);
     const content = sections.map((section, sectionIndex) => {
@@ -945,7 +1021,7 @@ function nearestAlignment(anchors, targets, threshold) {
 }
 
 function measureLabel(value, axis) {
-  const dimensions = RATIO_DIMENSIONS[state.ratio];
+  const dimensions = dimensionsForRatio();
   return `${Math.round(value * (axis === "x" ? dimensions.width : dimensions.height))} px`;
 }
 
@@ -1052,14 +1128,14 @@ function messengerMinimumHeight(item) {
 }
 
 function fitMessengerBoxToMessages(item, box, ratio) {
-  const minimumHeight = messengerMinimumHeight(item) / RATIO_DIMENSIONS[ratio].height;
+  const minimumHeight = messengerMinimumHeight(item) / dimensionsForRatio(ratio).height;
   if (box.h >= minimumHeight) return box;
   const bottom = box.y + box.h;
   return { ...box, y: clamp(bottom - minimumHeight, 0, 1 - minimumHeight), h: minimumHeight };
 }
 
 function minimumItemSize(item) {
-  const dimensions = RATIO_DIMENSIONS[state.ratio];
+  const dimensions = dimensionsForRatio();
   if (item.type !== "profile") {
     if (item.type === "dialog") return { w: 170 / dimensions.width, h: 96 / dimensions.height };
     const base = CONTENT_MINIMUM_PIXELS[item.type];
@@ -1152,7 +1228,7 @@ function fixedAspectResizeSize(item, proposedW, proposedH, stageRect, bypassSnap
 }
 
 function fixedProfileResizeSize(item, proposedW, proposedH, stageRect, bypassSnap, dominantAxis) {
-  const dimensions = RATIO_DIMENSIONS[state.ratio];
+  const dimensions = dimensionsForRatio();
   const layout = profileCardLayout(item);
   const normalizedAspect = profileCardNormalizedAspect(layout, state.ratio);
   const minimumWidth = (layout === "vertical" ? 170 : layout === "design" ? 300 : 270) / dimensions.width;
@@ -1160,7 +1236,7 @@ function fixedProfileResizeSize(item, proposedW, proposedH, stageRect, bypassSna
 }
 
 function fixedDecorationResizeSize(item, proposedW, proposedH, stageRect, bypassSnap, dominantAxis) {
-  const dimensions = RATIO_DIMENSIONS[state.ratio];
+  const dimensions = dimensionsForRatio();
   const normalizedAspect = decorationNormalizedAspect(item.type, state.ratio);
   const minimumPixels = ["notification", "dialog"].includes(item.type) ? 92 : 54;
   return fixedAspectResizeSize(item, proposedW, proposedH, stageRect, bypassSnap, dominantAxis, normalizedAspect, minimumPixels / dimensions.width);
@@ -1213,10 +1289,10 @@ function renderSmartGuides(stage) {
 }
 
 function renderCanvas() {
-  const page = currentPage(), dimensions = RATIO_DIMENSIONS[state.ratio], stage = dom.canvasStage;
+  const page = currentPage(), dimensions = dimensionsForRatio(), stage = dom.canvasStage;
   stage.innerHTML = ""; stage.dataset.ratio = state.ratio; stage.style.width = `${dimensions.width}px`; stage.style.height = `${dimensions.height}px`; stage.style.zoom = state.zoom / 100;
   if (page.background.source !== "color") {
-    const img = document.createElement("img"); img.className = "canvas-background"; img.src = page.background.source === "custom" ? page.background.customUrl : currentTheme().variants[state.ratio]; img.style.objectFit = page.background.fit; img.style.filter = `blur(${page.background.blur}px) brightness(${page.background.brightness}%)`; stage.append(img);
+    const img = document.createElement("img"); img.className = "canvas-background"; img.src = page.background.source === "custom" ? page.background.customUrl : backgroundVariant(); img.style.objectFit = page.background.fit; img.style.filter = `blur(${page.background.blur}px) brightness(${page.background.brightness}%)`; stage.append(img);
   } else { stage.style.background = page.background.color; }
   const overlay = document.createElement("div"); overlay.className = "canvas-overlay"; overlay.style.background = page.background.overlayColor; overlay.style.opacity = page.background.overlayOpacity / 100; stage.append(overlay);
   renderFrame(stage, page);
@@ -1227,7 +1303,7 @@ function renderCanvas() {
     stage.append(element);
   });
   renderSmartGuides(stage);
-  dom.selectionBreadcrumb.textContent = selectedItem() ? `${page.name} · ${state.ratio} > ${selectedItem().title}` : `${page.name} · ${state.ratio}`;
+  dom.selectionBreadcrumb.textContent = selectedItem() ? `${page.name} · ${ratioDisplayLabel()} > ${selectedItem().title}` : `${page.name} · ${ratioDisplayLabel()}`;
 }
 
 function startDrag(event, itemId) {
@@ -1391,7 +1467,7 @@ function bindQuickEditor() {
     while (sections.length < count) sections.push({ heading: sections.length === 1 ? "HATE" : `SECTION ${sections.length + 1}`, tags: "" });
     item.data.sections = sections.slice(0, count);
     item.data.tags = item.data.sections[0]?.tags || "";
-    const minimumHeight = clamp((45 + count * 48) / RATIO_DIMENSIONS[state.ratio].height, .10, .45);
+    const minimumHeight = clamp((45 + count * 48) / dimensionsForRatio().height, .10, .45);
     if (item.h < minimumHeight) {
       item.h = minimumHeight;
       item.y = clamp(item.y, 0, 1 - item.h);
@@ -1405,7 +1481,7 @@ function bindQuickEditor() {
     while (messages.length < count) messages.push({ side: messages.length % 2 ? "outgoing" : "incoming", text: "" });
     item.data.messageCount = count;
     item.data.messages = messages.slice(0, count);
-    const dimensions = RATIO_DIMENSIONS[state.ratio], minimumHeight = messengerMinimumHeight(item) / dimensions.height;
+    const dimensions = dimensionsForRatio(), minimumHeight = messengerMinimumHeight(item) / dimensions.height;
     if (item.h < minimumHeight) {
       const bottom = item.y + item.h;
       item.h = minimumHeight;
@@ -1556,21 +1632,96 @@ function bindQuickEditor() {
 }
 
 function renderAll() { renderControls(); renderThemeGrid(); renderPaletteGrid(); renderDefaultWindowStyles(); renderPageTabs(); renderCanvas(); renderQuickEditor(); }
-function addItem(type) { mutate(() => { const offset = (currentPage().items.length % 5) * .025; const item = itemPreset(type, offset); initializeItemLayouts(item, currentPage().items.length); Object.keys(item.layouts).forEach((ratio) => { item.layouts[ratio].x = clamp(item.layouts[ratio].x + offset, 0, 1 - item.layouts[ratio].w); item.layouts[ratio].y = clamp(item.layouts[ratio].y + offset, 0, 1 - item.layouts[ratio].h); }); Object.assign(item, clone(item.layouts[state.ratio])); currentPage().items.push(item); state.selectedItemId = item.id; toolboxEditMode = true; }); showToast(`${ITEM_NAMES[type]}을 추가했습니다.`); }
+function addItem(type) { mutate(() => { const offset = (currentPage().items.length % 5) * .025; const item = itemPreset(type, offset); initializeItemLayouts(item, currentPage().items.length); if (state.ratio === CUSTOM_RATIO) { const presetRatio = nearestPresetRatio(); item.layouts[CUSTOM_RATIO] = fitItemBoxAspect(item, clone(item.layouts[presetRatio]), CUSTOM_RATIO); if (item.type === "profile") item.data.cardLayouts[CUSTOM_RATIO] = item.data.cardLayouts[presetRatio]; } Object.keys(item.layouts).forEach((ratio) => { item.layouts[ratio].x = clamp(item.layouts[ratio].x + offset, 0, 1 - item.layouts[ratio].w); item.layouts[ratio].y = clamp(item.layouts[ratio].y + offset, 0, 1 - item.layouts[ratio].h); }); Object.assign(item, clone(item.layouts[state.ratio])); currentPage().items.push(item); state.selectedItemId = item.id; toolboxEditMode = true; }); showToast(`${ITEM_NAMES[type]}을 추가했습니다.`); }
 function deleteSelected() { if (!state.selectedItemId) return; mutate(() => { currentPage().items = currentPage().items.filter((item) => item.id !== state.selectedItemId); state.selectedItemId = null; toolboxEditMode = false; }); }
 function duplicateSelected() { const item = selectedItem(); if (!item) return; mutate(() => { syncCurrentLayout(); const copy = clone(item); copy.id = makeId("item"); Object.values(copy.layouts).forEach((box) => { box.x = clamp(box.x + .035, 0, 1 - box.w); box.y = clamp(box.y + .035, 0, 1 - box.h); }); Object.assign(copy, clone(copy.layouts[state.ratio])); currentPage().items.push(copy); state.selectedItemId = copy.id; toolboxEditMode = true; }); }
 
+function ensureCustomLayouts(page = currentPage(), sourceRatio = state.ratio) {
+  const source = sourceRatio === CUSTOM_RATIO ? nearestPresetRatio() : sourceRatio;
+  const sourceDimensions = dimensionsForRatio(source);
+  const targetDimensions = dimensionsForRatio(CUSTOM_RATIO);
+  page.items.forEach((item, index) => {
+    item.layouts ||= {};
+    if (item.layouts[CUSTOM_RATIO]) return;
+    if (item.type === "profile") {
+      item.data.cardLayouts ||= clone(DEFAULT_PROFILE_CARD_LAYOUTS);
+      item.data.cardLayouts[CUSTOM_RATIO] = profileCardLayout(item, source);
+    }
+    item.layouts[CUSTOM_RATIO] = carryBoxBetweenCanvases(
+      item,
+      clone(item.layouts[source] || recommendedBox(item, source, index)),
+      sourceDimensions,
+      targetDimensions,
+      CUSTOM_RATIO,
+    );
+  });
+}
 function switchRatio(ratio) {
-  if (!RATIO_DIMENSIONS[ratio] || ratio === state.ratio) return;
-  mutate(() => { syncCurrentLayout(currentPage(), state.ratio); state.ratio = ratio; applyRatioLayout(currentPage(), ratio); state.selectedItemId = null; toolboxEditMode = false; });
+  if ((ratio !== CUSTOM_RATIO && !RATIO_DIMENSIONS[ratio]) || ratio === state.ratio) return;
+  mutate(() => {
+    const previousRatio = state.ratio;
+    const previousDimensions = dimensionsForRatio(previousRatio);
+    const nextDimensions = dimensionsForRatio(ratio);
+    syncCurrentLayout(currentPage(), previousRatio);
+    state.pages.forEach((page) => carryPageLayout(
+      page,
+      previousRatio,
+      ratio,
+      previousDimensions,
+      nextDimensions,
+      page.id === state.currentPageId,
+    ));
+    state.ratio = ratio;
+    applyRatioLayout(currentPage(), ratio);
+    state.selectedItemId = null;
+    toolboxEditMode = false;
+  });
+}
+function applyCustomCanvasSize() {
+  const next = normalizeCustomDimensions({ width: dom.customCanvasWidth.value, height: dom.customCanvasHeight.value });
+  const previous = dimensionsForRatio(CUSTOM_RATIO);
+  if (next.width === previous.width && next.height === previous.height) return showToast("현재 자유 규격과 같습니다.");
+  mutate(() => {
+    if (state.ratio === CUSTOM_RATIO) syncCurrentLayout();
+    state.pages.forEach((page) => ensureCustomLayouts(page, nearestPresetRatio(previous)));
+    const sourceLayouts = new Map(state.pages.map((page) => [
+      page.id,
+      new Map(page.items.map((item) => [
+        item.id,
+        page.id === state.currentPageId && state.ratio === CUSTOM_RATIO
+          ? { x: item.x, y: item.y, w: item.w, h: item.h }
+          : clone(item.layouts[CUSTOM_RATIO]),
+      ])),
+    ]));
+    state.customDimensions = next;
+    state.pages.forEach((page) => {
+      page.items.forEach((item, index) => {
+        item.layouts[CUSTOM_RATIO] = carryBoxBetweenCanvases(
+          item,
+          sourceLayouts.get(page.id)?.get(item.id) || recommendedBox(item, CUSTOM_RATIO, index),
+          previous,
+          next,
+          CUSTOM_RATIO,
+        );
+      });
+    });
+    if (state.ratio === CUSTOM_RATIO) applyRatioLayout(currentPage(), CUSTOM_RATIO);
+  });
+  showToast(`자유 규격을 ${next.width}×${next.height}px로 변경했습니다.`);
 }
 function resetCurrentLayout() {
   mutate(() => {
     const page = currentPage();
     page.recommendedLayoutRevision = RECOMMENDED_LAYOUT_REVISION;
     const rack = page.items.find((item) => item.type === "rack" && item.data?.slot === "rack");
-    if (rack) rack.data.direction = state.ratio === "1:1" ? "vertical" : "horizontal";
+    if (rack) rack.data.direction = state.ratio === CUSTOM_RATIO
+      ? (templateRatio() === "1:1" ? "vertical" : "horizontal")
+      : state.ratio === "1:1" ? "vertical" : "horizontal";
     page.items.forEach((item, index) => {
+      if (item.type === "profile") {
+        item.data.cardLayouts ||= clone(DEFAULT_PROFILE_CARD_LAYOUTS);
+        item.data.cardLayouts[state.ratio] = DEFAULT_PROFILE_CARD_LAYOUTS[templateRatio()];
+      }
       const box = fitItemBoxAspect(item, recommendedBox(item, state.ratio, index), state.ratio);
       item.layouts[state.ratio] = clone(box);
       Object.assign(item, box);
@@ -1579,7 +1730,7 @@ function resetCurrentLayout() {
     const messengerIndex = page.items.findIndex((item) => item.type === "messenger");
     if (messengerIndex >= 0) page.items.push(page.items.splice(messengerIndex, 1)[0]);
   });
-  showToast(`${state.ratio} 추천 배치와 프레임을 적용했습니다.`);
+  showToast(`${ratioDisplayLabel()} 추천 배치와 프레임을 적용했습니다.`);
 }
 
 function applyFrameChange(key, value) {
@@ -1625,6 +1776,7 @@ function addPage(duplicate = false) {
     page.name = `PAGE ${String(pageNumber).padStart(2, "0")}`;
     if (/^made with PROFILE\.ZIP · page \d+$/i.test(page.frame.bottomText)) page.frame.bottomText = `made with PROFILE.ZIP · page ${String(pageNumber).padStart(2, "0")}`;
     page.items.forEach((item) => { item.id = makeId("item"); });
+    if (state.ratio === CUSTOM_RATIO) ensureCustomLayouts(page);
     applyRatioLayout(page, state.ratio);
     state.pages.push(page);
     state.currentPageId = page.id;
@@ -1644,7 +1796,7 @@ async function renderStageToBlob() {
   try {
     return await renderElementToPngBlob({
       element: dom.canvasStage,
-      dimensions: RATIO_DIMENSIONS[state.ratio],
+      dimensions: dimensionsForRatio(),
       scale: EXPORT_SCALE,
     });
   } finally {
@@ -1652,7 +1804,7 @@ async function renderStageToBlob() {
     renderCanvas();
   }
 }
-async function exportPng() { try { showToast("PNG를 만들고 있습니다…"); const blob = await renderStageToBlob(); if (!blob) throw new Error("empty"); downloadBlob(blob, `${currentPage().name.toLowerCase().replaceAll(" ", "-")}-${state.ratio.replace(":", "x")}.png`); showToast("PNG 저장을 시작했습니다."); } catch (error) { console.error(error); showToast("PNG 저장에 실패했습니다."); } }
+async function exportPng() { try { showToast("PNG를 만들고 있습니다…"); const blob = await renderStageToBlob(); if (!blob) throw new Error("empty"); const dimensions = dimensionsForRatio(); const ratioFilePart = state.ratio === CUSTOM_RATIO ? `custom-${dimensions.width}x${dimensions.height}` : state.ratio.replace(":", "x"); downloadBlob(blob, `${currentPage().name.toLowerCase().replaceAll(" ", "-")}-${ratioFilePart}.png`); showToast("PNG 저장을 시작했습니다."); } catch (error) { console.error(error); showToast("PNG 저장에 실패했습니다."); } }
 
 let previewObjectUrl;
 async function openPreview() {
@@ -1669,7 +1821,8 @@ async function openPreview() {
     dom.previewImage.src = previewObjectUrl;
     await dom.previewImage.decode();
     dom.previewImage.hidden = false;
-    dom.previewStatus.textContent = `${currentPage().name} · ${state.ratio} · ${RATIO_DIMENSIONS[state.ratio].width * EXPORT_SCALE}×${RATIO_DIMENSIONS[state.ratio].height * EXPORT_SCALE}`;
+    const dimensions = dimensionsForRatio();
+    dom.previewStatus.textContent = `${currentPage().name} · ${ratioDisplayLabel()} · ${dimensions.width * EXPORT_SCALE}×${dimensions.height * EXPORT_SCALE}`;
   } catch (error) {
     console.error(error);
     dom.previewStatus.textContent = "미리보기를 만들지 못했습니다.";
@@ -1701,6 +1854,12 @@ function setPreviewBackdrop(mode) {
 
 function bindEvents() {
   document.querySelectorAll("[data-ratio]").forEach((button) => button.addEventListener("click", () => switchRatio(button.dataset.ratio)));
+  dom.applyCustomSizeBtn.addEventListener("click", applyCustomCanvasSize);
+  [dom.customCanvasWidth, dom.customCanvasHeight].forEach((input) => input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    applyCustomCanvasSize();
+  }));
   dom.resetLayoutBtn.addEventListener("click", resetCurrentLayout);
   document.querySelectorAll(".tool-tab").forEach((button) => button.addEventListener("click", () => { document.querySelectorAll(".tool-tab").forEach((tab) => { const active = tab === button; tab.classList.toggle("is-active", active); tab.setAttribute("aria-selected", String(active)); }); document.querySelectorAll(".tool-panel").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === button.dataset.tab)); }));
   document.querySelectorAll("[data-add-item]").forEach((button) => button.addEventListener("click", () => addItem(button.dataset.addItem)));

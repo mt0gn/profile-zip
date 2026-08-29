@@ -27,7 +27,7 @@ validateModuleSyntax(appJs);
 Object.values(moduleSources).forEach(validateModuleSyntax);
 new Function(pixelIconsJs);
 
-const requiredControls = ["themeGrid", "resetLayoutBtn", "ratioSelect", "quickEditor", "canvasStage", "customThemePanel", "customPaletteWindow", "customPaletteTitleBar", "customPaletteBorder", "customPaletteText", "customPaletteAccent", "customPaletteShadow", "customPaletteScope", "applyCustomPalette", "previewBtn", "previewOverlay", "previewImage"];
+const requiredControls = ["themeGrid", "resetLayoutBtn", "ratioSelect", "customSizeControl", "customCanvasWidth", "customCanvasHeight", "applyCustomSizeBtn", "quickEditor", "canvasStage", "customThemePanel", "customPaletteWindow", "customPaletteTitleBar", "customPaletteBorder", "customPaletteText", "customPaletteAccent", "customPaletteShadow", "customPaletteScope", "applyCustomPalette", "previewBtn", "previewOverlay", "previewImage"];
 for (const id of requiredControls) {
   if (!html.includes(`id="${id}"`)) throw new Error(`Missing interface control: #${id}`);
 }
@@ -122,6 +122,8 @@ const portraitBottom = Math.max(...requiredLayoutSlots.map((slot) => portraitLay
 if (Math.abs(portraitTop - (1 - portraitBottom)) > .03) throw new Error("3:4 recommended layout top and bottom gutters are unbalanced");
 if (!js.includes("RECOMMENDED_LAYOUT_REVISION = 21") || !js.includes("CONTENT_STRUCTURE_REVISION = 4") || !js.includes('const items = [profile, gallery, likes, rack, music, messenger]') || !js.includes('ratio: "1:1"') || !js.includes('direction: "vertical", frame: "dock"') || !js.includes('state.ratio === "1:1" ? "vertical" : "horizontal"') || !js.includes("CONTENT_MINIMUM_PIXELS") || !js.includes("RECOMMENDED_WINDOW_STYLE_BY_TYPE") || !js.includes("const messengerIndex = page.items.findIndex") || !css.includes("font-size:11px") || !js.includes("* 29") || !js.includes('if (item.type === "rack") return "rack"') || !js.includes("dialogDecorationMarkup") || !css.includes(".dialog-preview") || !js.includes('heading: "LIKES"') || !js.includes('heading: "HATES"') || !js.includes('count: 2, layout: "row"') || !js.includes('caller: "MY FAVORITE"') || !js.includes('duration: "00:00"') || !css.includes('width:25%; aspect-ratio:3/4') || !css.includes('grid-template-rows:25px minmax(0,1fr)') || !js.includes('dialog: Object.freeze({ width: 210, height: 112 })') || !js.includes('warning: Object.freeze({ width: 80, height: 80 })') || !js.includes('cursor: Object.freeze({ width: 56, height: 56 })') || !html.includes('class="vector-stroke-fill" d="M29 22h6l-1 20h-4Z"') || !css.includes('stroke-width:1.75') || !html.includes('rel="icon" type="image/png" href="assets/brand-mark.png?v=profilezip"')) throw new Error("Ready-to-use collage defaults are incomplete");
 if (!js.includes('!["mono-light", "mono-dark", "custom"].includes(page.paletteId)') || !js.includes("function applyCustomPalette()") || !js.includes('page.paletteId = "custom"') || !js.includes('data-palette-color') || !js.includes('page.paletteSourceId = kit.id') || !js.includes('dom.customThemePanel.hidden = bg.source !== "custom" && page.paletteId !== "custom"') || !css.includes(".palette-swatch input") || !css.includes(".custom-theme-colors") || !html.includes("모든 페이지")) throw new Error("Interactive theme palette controls are incomplete");
+if (!html.includes('data-ratio="custom"') || !html.includes('id="customCanvasWidth"') || !html.includes('id="customCanvasHeight"') || !js.includes("function applyCustomCanvasSize()") || !js.includes("function ensureCustomLayouts(") || !js.includes("dimensionsForRatio()") || !css.includes(".custom-size-control")) throw new Error("Custom canvas sizing is incomplete");
+if (!js.includes("function carryBoxBetweenCanvases(") || !js.includes("function carryPageLayout(") || !js.includes("item.data.cardLayouts[targetRatio] = profileCardLayout(item, sourceRatio)") || !js.includes("item.data.cardLayouts[state.ratio] = DEFAULT_PROFILE_CARD_LAYOUTS[templateRatio()]") || !js.includes("sourceDimensions.width / targetDimensions.width")) throw new Error("Canvas-only ratio switching is incomplete");
 
 function copyTree(source, destination) {
   const sourceStats = lstatSync(source);
@@ -145,7 +147,13 @@ writeFileSync(join(outputRoot, "build-info.json"), `${JSON.stringify({ app: "PRO
 const buildInfoPath = join(outputRoot, "build-info.json");
 const buildInfo = JSON.parse(readFileSync(buildInfoPath, "utf8"));
 if (!js.includes("editingPageId") || !js.includes("MAX_PAGE_NAME_LENGTH = 24") || !js.includes('input.className = "page-name-input"') || !js.includes('button.addEventListener("dblclick"') || !css.includes(".page-name-input")) throw new Error("Inline page naming is incomplete");
-buildInfo.version = "3.36.2";
+buildInfo.version = "3.37.0";
+buildInfo.ratios = 4;
+buildInfo.customCanvasSize = { min: 480, max: 2000, exportScale: 2 };
+buildInfo.customCanvasLayout = "pixel-size-preserving canvas expansion";
+buildInfo.ratioSwitchPolicy = "preserve module pixel size, position, and window/profile frame";
+buildInfo.recommendedLayoutPolicy = "recommended arrangement alone applies ratio-specific profile frames and positions";
+buildInfo.customCanvasBackground = "nearest preset-ratio background variant";
 buildInfo.recommendedLayoutRevision = 19;
 buildInfo.contentStructureRevision = 4;
 buildInfo.floatingWindowPair = ["messenger", "gallery", "music"];
@@ -196,10 +204,11 @@ buildInfo.dialogIconStyle = "minimal OK-only picker preview; canvas design retai
 buildInfo.musicIconOutline = true;
 buildInfo.preview = { exactPngPipeline: true, backdrops: ["dark", "light"], fullscreen: true };
 buildInfo.pngExport = { fixedScale: 2, dimensions: { "4:3": "2400x1800", "1:1": "2000x2000", "3:4": "1800x2400" } };
+buildInfo.pngExport.dimensions.custom = "custom width x2 × custom height x2";
 buildInfo.autosave = { primary: "IndexedDB", fallback: "localStorage", visibleFailureNotice: true };
 buildInfo.codeStructure = ["config", "persistence", "output", "utils", "editor-entry"];
 writeFileSync(buildInfoPath, `${JSON.stringify(buildInfo, null, 2)}\n`);
 
 console.log(`PROFILE.ZIP build complete: ${relative(projectRoot, outputRoot)}`);
-console.log("Verified: 20 backgrounds · 3 collage layouts · 6 default content windows · 12 pixel decorations · 3 system props · 3 fixed-ratio ID cards");
+console.log("Verified: 20 backgrounds · 3 preset layouts + custom canvas · 6 default content windows · 12 pixel decorations · 3 system props · 3 ID card designs");
 
