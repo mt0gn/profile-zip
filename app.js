@@ -832,8 +832,8 @@ function itemMarkup(item) {
     const content = sections.map((section, sectionIndex) => {
       const tagLines = String(section.tags || "").replace(/\r\n?/g, "\n").split("\n").map((line) => {
         const tags = line.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
-        return tags ? `<div class="tag-line">${tags}</div>` : "";
-      }).filter(Boolean).join("");
+        return `<div class="tag-line${tags ? "" : " is-empty"}">${tags}</div>`;
+      }).join("");
       return `<section class="tag-section"><h3>${escapeHtml(section.heading || `SECTION ${sectionIndex + 1}`)}</h3><div class="tag-row">${tagLines}</div></section>`;
     }).join("");
     return windowShell(item, "tag-window-body", `<div class="tag-sections" style="--tag-section-count:${sections.length}">${content}</div>`);
