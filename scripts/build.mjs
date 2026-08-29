@@ -68,7 +68,7 @@ if (!js.includes('item.type === "messenger"') || !js.includes('item.type === "vi
 if (!css.includes(".video-self-view") || !css.includes("aspect-ratio:3/4") || !css.includes("object-position:center top") || !css.includes(".video-self-view.is-bottom") || !js.includes('data-data-field="selfPosition"') || !js.includes('selfPosition: item.data.selfPosition === "bottom" ? "bottom" : "top"')) throw new Error("Video self-view must keep a portrait 3:4 crop and selectable vertical position");
 if (!js.includes("data-message-count") || !js.includes("data-message-field") || !js.includes("messengerMinimumHeight") || !js.includes("messageCount = clamp") || !css.includes(".message-editors")) throw new Error("Expandable messenger conversation is incomplete");
 if (!js.includes("항목은 한 줄에 하나씩 입력하세요.") || !js.includes("recent-entry-single") || !css.includes(".recent-body li.recent-entry-single")) throw new Error("Flexible recent-entry input is incomplete");
-if (!js.includes("data-tag-section-count") || !js.includes("data-tag-section-field") || !js.includes("item.data.sections = sections.slice(0, count)") || !js.includes("--tag-section-count:${sections.length}") || !css.includes("grid-template-rows:repeat(var(--tag-section-count,1),minmax(0,1fr))") || !css.includes("font-size:13px; font-weight:900")) throw new Error("Multi-section tag window is incomplete");
+if (!js.includes("data-tag-section-count") || !js.includes("data-tag-section-field") || !js.includes("item.data.sections = sections.slice(0, count)") || !js.includes("--tag-section-count:${sections.length}") || !js.includes('.split("\\n")') || !js.includes('class="tag-line"') || !css.includes("grid-template-rows:repeat(var(--tag-section-count,1),minmax(0,1fr))") || !css.includes(".tag-window-body .tag-line") || !css.includes("font-size:17px;")) throw new Error("Multi-section tag window is incomplete");
 if (!js.includes("DECORATION_ASPECTS") || !js.includes("DECORATION_WIDTHS") || !js.includes("fixedDecorationResizeSize") || !js.includes("fitItemBoxAspect(item, recommendedBox") || !js.includes("SYSTEM_DECORATION_PIXELS") || !js.includes('if (item.id === state.selectedItemId)') || js.includes('if (SYSTEM_DECORATION_TYPE_SET.has(item.type)) return { w: item.w, h: item.h, guides: [] }') || !css.includes(".decoration-element") || (html.match(/class="element-preview/g) || []).length !== 15 || html.includes('class="mini-warning">!</i>')) throw new Error("Unified decoration sizing system is incomplete");
 if (!js.includes('dialog: Object.freeze({ width: 210, height: 112 })') || !js.includes('function fitFreeDialogBox(box, ratio)') || !js.includes('if (item.type === "dialog") return fitFreeDialogBox(box, ratio)') || !js.includes('DECORATION_TYPES.has(item.type) && item.type !== "dialog"') || !js.includes('if (item.type === "dialog") return { w: 170 / dimensions.width, h: 96 / dimensions.height }') || !js.includes('{ textarea: true, wide: true }') || !css.includes('white-space:normal; overflow-wrap:anywhere')) throw new Error("Free-ratio retro confirmation dialog is incomplete");
 if (!js.includes('function applyDecorationPickerPalette(palette)') || !js.includes('document.querySelectorAll(".primary-decoration-grid, .rack-preset-card")') || !js.includes('"--item-paper": palette.window') || !js.includes('"--item-accent": palette.titleBar') || !js.includes('"--item-border": palette.border') || !js.includes('"--item-highlight": palette.accent') || !js.includes('applyDecorationPickerPalette(page.palette)')) throw new Error("Theme-aware decoration picker previews are incomplete");
@@ -145,7 +145,7 @@ writeFileSync(join(outputRoot, "build-info.json"), `${JSON.stringify({ app: "PRO
 const buildInfoPath = join(outputRoot, "build-info.json");
 const buildInfo = JSON.parse(readFileSync(buildInfoPath, "utf8"));
 if (!js.includes("editingPageId") || !js.includes("MAX_PAGE_NAME_LENGTH = 24") || !js.includes('input.className = "page-name-input"') || !js.includes('button.addEventListener("dblclick"') || !css.includes(".page-name-input")) throw new Error("Inline page naming is incomplete");
-buildInfo.version = "3.36.0";
+buildInfo.version = "3.36.1";
 buildInfo.recommendedLayoutRevision = 19;
 buildInfo.contentStructureRevision = 4;
 buildInfo.floatingWindowPair = ["messenger", "gallery", "music"];
@@ -154,7 +154,9 @@ buildInfo.recommendedLayoutSafeArea = "user-authored composition";
 delete buildInfo.recommendedLayoutMinimumGutter;
 buildInfo.videoRecommendedMinimumHeight = "260px";
 buildInfo.messengerBubbleFontSize = "12px";
-buildInfo.outputTypographyScale = { windowTitle: "12px", idCardLabel: "9px", galleryCaption: "10px", noteBody: "14px", tagText: "13px", messengerBubble: "12px", musicArtist: "12px", videoName: "12px", videoStatus: "9px" };
+buildInfo.outputTypographyScale = { windowTitle: "12px", idCardLabel: "9px", galleryCaption: "10px", noteBody: "14px", tagText: "17px", messengerBubble: "12px", musicArtist: "12px", videoName: "12px", videoStatus: "9px" };
+buildInfo.tagFontSize = "17px";
+buildInfo.tagEntryDelimiters = { nextTag: "comma", nextLine: "newline" };
 buildInfo.messengerLayer = "front";
 buildInfo.alignmentPolicy = "preserve user-authored composition; align compatible edges and gaps";
 buildInfo.defaultLayoutNotes = { "4:3": "right column and lower-left edges aligned", "1:1": "right column endings aligned", "3:4": "top row and middle-column anchors aligned" };

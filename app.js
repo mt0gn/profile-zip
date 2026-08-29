@@ -830,8 +830,11 @@ function itemMarkup(item) {
   if (item.type === "tags") {
     const sections = (Array.isArray(d.sections) && d.sections.length ? d.sections : [{ heading: item.title || "TAGS", tags: d.tags || "" }]).slice(0, 4);
     const content = sections.map((section, sectionIndex) => {
-      const tags = String(section.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
-      return `<section class="tag-section"><h3>${escapeHtml(section.heading || `SECTION ${sectionIndex + 1}`)}</h3><div class="tag-row">${tags}</div></section>`;
+      const tagLines = String(section.tags || "").replace(/\r\n?/g, "\n").split("\n").map((line) => {
+        const tags = line.split(",").map((tag) => tag.trim()).filter(Boolean).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
+        return tags ? `<div class="tag-line">${tags}</div>` : "";
+      }).filter(Boolean).join("");
+      return `<section class="tag-section"><h3>${escapeHtml(section.heading || `SECTION ${sectionIndex + 1}`)}</h3><div class="tag-row">${tagLines}</div></section>`;
     }).join("");
     return windowShell(item, "tag-window-body", `<div class="tag-sections" style="--tag-section-count:${sections.length}">${content}</div>`);
   }
@@ -1314,7 +1317,7 @@ function renderQuickEditor() {
     const sections = Array.isArray(d.sections) && d.sections.length ? d.sections.slice(0, 4) : [{ heading: "LIKE", tags: d.tags || "" }];
     fields += `<label>섹션 수<select data-tag-section-count>${Array.from({ length: 4 }, (_, index) => `<option value="${index + 1}"${index + 1 === sections.length ? " selected" : ""}>${index + 1}개</option>`).join("")}</select></label>`;
     fields += `<div class="tag-section-editors wide">${sections.map((section, index) => `<div class="tag-section-editor"><div><b>SECTION ${String(index + 1).padStart(2, "0")}</b><small>${index === 0 ? "기본 섹션" : "추가 섹션"}</small></div><label>소제목<input data-tag-section-index="${index}" data-tag-section-field="heading" type="text" value="${escapeHtml(section.heading)}"></label><label>태그<textarea data-tag-section-index="${index}" data-tag-section-field="tags">${escapeHtml(section.tags)}</textarea></label></div>`).join("")}</div>`;
-    fields += `<div class="wide helper-copy">LIKE, HATE, DREAM처럼 소제목을 나누고 태그는 쉼표로 구분하세요. 섹션을 늘리면 현재 창 높이도 함께 확보됩니다.</div>`;
+    fields += `<div class="wide helper-copy">같은 줄의 태그는 쉼표로 구분하고, Enter를 누르면 다음 태그 줄로 넘어갑니다. 섹션을 늘리면 현재 창 높이도 함께 확보됩니다.</div>`;
   }
   if (item.type === "recent") fields += textField("최근 글", "entries", d.entries, { textarea: true, wide: true }) + `<div class="wide helper-copy">항목은 한 줄에 하나씩 입력하세요.</div>`;
   if (item.type === "messenger") {
