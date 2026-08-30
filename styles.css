@@ -485,6 +485,7 @@ button { cursor: pointer; }
 .editor-fields input[type="color"] { padding:2px; }
 .editor-fields input[type="range"] { min-height:22px; padding:0; border:0; background:transparent; accent-color:var(--mint-dark); }
 .editor-fields textarea { resize:vertical; min-height:58px; }
+.editor-fields .longform-field textarea { min-height:260px; max-height:52vh; line-height:1.65; resize:vertical; }
 .editor-fields .wide { grid-column:auto; }
 .image-transform-editor { margin:0; padding:10px; display:grid; gap:9px; border:1px solid #c9c4bc; background:#f5f2ea; }
 .image-transform-editor legend { padding:0 5px; font-size:10px; font-weight:900; }
@@ -507,9 +508,14 @@ button { cursor: pointer; }
 .gallery-slot-editor .image-transform-editor { background:#eeeae1; }
 .tag-section-editors { display:grid; gap:9px; }
 .tag-section-editor { padding:9px; display:grid; gap:8px; background:#f5f2ea; border:1px solid #c9c4bc; }
-.tag-section-editor > div { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding-bottom:6px; border-bottom:1px solid #d7d2ca; }
-.tag-section-editor > div b { font:900 9px "Courier New",monospace; }
-.tag-section-editor > div small { color:var(--muted); font-size:8px; }
+.tag-section-editor-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:6px; border-bottom:1px solid #d7d2ca; }
+.tag-section-editor-heading > b { font:900 9px "Courier New",monospace; }
+.tag-section-order { display:flex; gap:3px; }
+.tag-section-order button { width:24px; min-width:24px; height:22px; min-height:22px; padding:0; display:grid; place-items:center; border:1px solid #aaa59d; border-radius:3px; background:#ebe8e1; color:var(--ink); font:900 12px/1 Arial,sans-serif; cursor:pointer; }
+.tag-section-order button svg { width:14px; height:14px; overflow:visible; pointer-events:none; }
+.tag-section-order button path { fill:none; stroke:currentColor; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.tag-section-order button:hover:not(:disabled) { background:var(--mint); }
+.tag-section-order button:disabled { opacity:.28; cursor:not-allowed; }
 .tag-section-editor textarea { min-height:48px; }
 .message-editors { display:grid; gap:9px; }
 .message-editor { padding:9px; display:grid; gap:8px; background:#f5f2ea; border:1px solid #c9c4bc; }

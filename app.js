@@ -1342,7 +1342,14 @@ function startResize(event, itemId) {
 }
 
 const ITEM_NAMES = { profile: "프로필", gallery: "사진첩", note: "소개 메모", music: "음악 플레이어", tags: "태그 창", recent: "최근 글", messenger: "메신저", video: "영상 통화", rack: "장식 배열", folder: "폴더", file: "문서 파일", imageapp: "이미지", videoapp: "비디오", camera: "카메라", notification: "알림", chat: "채팅", appmusic: "음악", paint: "그림판", internet: "인터넷", memory: "메모리", trash: "쓰레기통", dialog: "확인 창", warning: "경고", cursor: "마우스 커서" };
-function textField(label, key, value, options = {}) { const wide = options.wide ? " wide" : ""; const tag = options.textarea ? `<textarea data-data-field="${key}">${escapeHtml(value)}</textarea>` : `<input data-data-field="${key}" type="text" value="${escapeHtml(value)}">`; return `<label class="${wide}">${label}${tag}</label>`; }
+function textField(label, key, value, options = {}) {
+  const classes = [options.wide ? "wide" : "", options.longform ? "longform-field" : ""].filter(Boolean).join(" ");
+  const longform = options.longform ? " data-longform-editor" : "";
+  const tag = options.textarea
+    ? `<textarea data-data-field="${key}"${longform}>${escapeHtml(value)}</textarea>`
+    : `<input data-data-field="${key}" type="text" value="${escapeHtml(value)}">`;
+  return `<label${classes ? ` class="${classes}"` : ""}>${label}${tag}</label>`;
+}
 function titleField(item) { return `<label>창 제목<input data-item-field="title" type="text" value="${escapeHtml(item.title)}"></label>`; }
 function textColorField(item) { return `<label>글자색<input data-item-field="textColor" type="color" value="${item.textColor || currentPage().palette.text}"></label>`; }
 function imageTransformEditor(label, key, transform, index = null) {
@@ -1406,13 +1413,13 @@ function renderQuickEditor() {
     }).join("")}</div>`;
     if (count === 1) fields += `<div class="wide helper-copy">1칸은 캡션 없이 대표 사진처럼 크게 표시됩니다.</div>`;
   }
-  if (item.type === "note") fields += textField("본문 제목", "heading", d.heading) + textField("본문", "body", d.body, { textarea: true, wide: true });
+  if (item.type === "note") fields += textField("본문 제목", "heading", d.heading) + textField("본문", "body", d.body, { textarea: true, wide: true, longform: true });
   if (item.type === "music") fields += textField("곡명", "song", d.song) + textField("아티스트", "artist", d.artist);
   if (item.type === "tags") {
     const sections = Array.isArray(d.sections) && d.sections.length ? d.sections.slice(0, 4) : [{ heading: "LIKE", tags: d.tags || "" }];
     fields += `<label>섹션 수<select data-tag-section-count>${Array.from({ length: 4 }, (_, index) => `<option value="${index + 1}"${index + 1 === sections.length ? " selected" : ""}>${index + 1}개</option>`).join("")}</select></label>`;
-    fields += `<div class="tag-section-editors wide">${sections.map((section, index) => `<div class="tag-section-editor"><div><b>SECTION ${String(index + 1).padStart(2, "0")}</b><small>${index === 0 ? "기본 섹션" : "추가 섹션"}</small></div><label>소제목<input data-tag-section-index="${index}" data-tag-section-field="heading" type="text" value="${escapeHtml(section.heading)}"></label><label>태그<textarea data-tag-section-index="${index}" data-tag-section-field="tags">${escapeHtml(section.tags)}</textarea></label></div>`).join("")}</div>`;
-    fields += `<div class="wide helper-copy">같은 줄의 태그는 쉼표로 구분하고, Enter를 누르면 다음 태그 줄로 넘어갑니다. 섹션을 늘리면 현재 창 높이도 함께 확보됩니다.</div>`;
+    fields += `<div class="tag-section-editors wide">${sections.map((section, index) => `<div class="tag-section-editor"><div class="tag-section-editor-heading"><b>SECTION ${String(index + 1).padStart(2, "0")}</b><span class="tag-section-order"><button type="button" data-tag-section-move="-1" data-tag-section-index="${index}" aria-label="${index + 1}번 섹션을 위로 이동" title="위로 이동"${index === 0 ? " disabled" : ""}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10 8 5.5 12.5 10"/></svg></button><button type="button" data-tag-section-move="1" data-tag-section-index="${index}" aria-label="${index + 1}번 섹션을 아래로 이동" title="아래로 이동"${index === sections.length - 1 ? " disabled" : ""}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg></button></span></div><label>소제목<input data-tag-section-index="${index}" data-tag-section-field="heading" type="text" value="${escapeHtml(section.heading)}"></label><label>태그<textarea data-tag-section-index="${index}" data-tag-section-field="tags">${escapeHtml(section.tags)}</textarea></label></div>`).join("")}</div>`;
+    fields += `<div class="wide helper-copy">위로·아래로 버튼으로 섹션 순서를 바꿀 수 있어요. 같은 줄의 태그는 쉼표로 구분하고, Enter를 누르면 다음 태그 줄로 넘어갑니다. 섹션을 늘리면 현재 창 높이도 함께 확보됩니다.</div>`;
   }
   if (item.type === "recent") fields += textField("최근 글", "entries", d.entries, { textarea: true, wide: true }) + `<div class="wide helper-copy">항목은 한 줄에 하나씩 입력하세요.</div>`;
   if (item.type === "messenger") {
@@ -1494,6 +1501,22 @@ function bindQuickEditor() {
     }
     commitTransaction(); renderCanvas(); renderQuickEditor(); updateUndoButtons();
   });
+  dom.quickEditor.querySelectorAll("[data-tag-section-move]").forEach((button) => button.addEventListener("click", () => {
+    const item = selectedItem();
+    const from = Number(button.dataset.tagSectionIndex);
+    const to = from + Number(button.dataset.tagSectionMove);
+    const sections = Array.isArray(item?.data?.sections) ? item.data.sections : [];
+    if (to < 0 || to >= sections.length) return;
+    const editorScrollTop = dom.quickEditor.scrollTop;
+    beginTransaction();
+    [sections[from], sections[to]] = [sections[to], sections[from]];
+    item.data.tags = sections[0]?.tags || "";
+    commitTransaction();
+    renderCanvas();
+    renderQuickEditor();
+    dom.quickEditor.scrollTop = editorScrollTop;
+    updateUndoButtons();
+  }));
   dom.quickEditor.querySelector("select[data-message-count]")?.addEventListener("change", (event) => {
     beginTransaction();
     const item = selectedItem(), count = Number(event.target.value), messages = Array.isArray(item.data.messages) ? item.data.messages : [];
@@ -1588,6 +1611,16 @@ function bindQuickEditor() {
     // Keep the editor DOM in place while the user moves between fields.
     // Rebuilding it on blur invalidates the next input just as it receives focus.
     input.addEventListener("blur", () => { commitTransaction(); updateUndoButtons(); });
+  });
+  dom.quickEditor.querySelectorAll("textarea[data-longform-editor]").forEach((textarea) => {
+    const resize = () => {
+      const maximum = Math.max(260, Math.round(window.innerHeight * .52));
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight + 2, 260), maximum)}px`;
+      textarea.style.overflowY = textarea.scrollHeight > maximum ? "auto" : "hidden";
+    };
+    textarea.addEventListener("input", resize);
+    resize();
   });
   dom.quickEditor.querySelectorAll("input[data-image-transform]").forEach((input) => {
     input.addEventListener("focus", beginTransaction);
