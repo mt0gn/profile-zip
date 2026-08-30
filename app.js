@@ -242,7 +242,7 @@ function defaultPage(index = 1) {
   return {
     id: makeId("page"), name: `PAGE ${String(index).padStart(2, "0")}`,
     background: backgroundPreset("alley"), paletteId: "theme-alley", palette: clone(BACKGROUND_THEMES.find((theme) => theme.id === "alley").palette),
-    frame: { enabled: true, preset: "web", topText: "hey welcome to my page! hope you have a lovely day", menuText: "home / profile / gallery / archive", bottomText: `made with PROFILE.ZIP · page ${String(index).padStart(2, "0")}`, textColor: "#173b39" },
+    frame: { enabled: true, preset: "web", topText: "hey welcome to my page! hope you have a lovely day", menuText: "home / profile / gallery / archive", bottomText: "made with PROFILE.ZIP · a tool by wesea", textColor: "#173b39" },
     defaultWindowStyle: "slim",
     recommendedLayoutRevision: RECOMMENDED_LAYOUT_REVISION,
     contentStructureRevision: CONTENT_STRUCTURE_REVISION,
