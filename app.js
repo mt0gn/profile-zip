@@ -1311,6 +1311,26 @@ function renderSmartGuides(stage) {
   });
 }
 
+function balanceTagSectionHeights(root = dom.canvasStage) {
+  root.querySelectorAll(".tag-sections").forEach((group) => {
+    const sections = [...group.querySelectorAll(":scope > .tag-section")];
+    if (!sections.length) return;
+    sections.forEach((section) => {
+      section.style.flex = "0 0 auto";
+      section.style.height = "auto";
+    });
+    const styles = getComputedStyle(group);
+    const gap = Number.parseFloat(styles.rowGap || styles.gap) || 0;
+    const naturalHeights = sections.map((section) => Math.ceil(section.scrollHeight));
+    const availableHeight = Math.max(0, group.clientHeight - gap * Math.max(0, sections.length - 1));
+    const naturalTotal = naturalHeights.reduce((sum, height) => sum + height, 0);
+    const sharedSpace = Math.max(0, availableHeight - naturalTotal) / sections.length;
+    sections.forEach((section, index) => {
+      section.style.height = `${naturalHeights[index] + sharedSpace}px`;
+    });
+  });
+}
+
 function renderCanvas() {
   const page = currentPage(), dimensions = dimensionsForRatio(), stage = dom.canvasStage;
   stage.innerHTML = ""; stage.dataset.ratio = state.ratio; stage.style.width = `${dimensions.width}px`; stage.style.height = `${dimensions.height}px`; stage.style.zoom = state.zoom / 100;
@@ -1325,6 +1345,7 @@ function renderCanvas() {
     if (item.id === state.selectedItemId) { const handle = document.createElement("span"); handle.className = "resize-handle"; handle.addEventListener("pointerdown", (event) => startResize(event, item.id)); element.append(handle); }
     stage.append(element);
   });
+  balanceTagSectionHeights(stage);
   renderSmartGuides(stage);
   dom.selectionBreadcrumb.textContent = selectedItem() ? `${page.name} · ${ratioDisplayLabel()} > ${selectedItem().title}` : `${page.name} · ${ratioDisplayLabel()}`;
 }
