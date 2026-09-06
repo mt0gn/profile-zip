@@ -27,7 +27,7 @@ validateModuleSyntax(appJs);
 Object.values(moduleSources).forEach(validateModuleSyntax);
 new Function(pixelIconsJs);
 
-const requiredControls = ["themeGrid", "resetLayoutBtn", "ratioSelect", "customSizeControl", "customCanvasWidth", "customCanvasHeight", "applyCustomSizeBtn", "quickEditor", "canvasStage", "customThemePanel", "customPaletteWindow", "customPaletteTitleBar", "customPaletteBorder", "customPaletteText", "customPaletteAccent", "customPaletteShadow", "customPaletteScope", "applyCustomPalette", "previewBtn", "previewOverlay", "previewImage"];
+const requiredControls = ["themeGrid", "resetLayoutBtn", "ratioSelect", "customSizeControl", "customCanvasWidth", "customCanvasHeight", "applyCustomSizeBtn", "quickEditor", "canvasStage", "customThemePanel", "customPaletteWindow", "customPaletteTitleBar", "customPaletteBorder", "customPaletteText", "customPaletteAccent", "customPaletteShadow", "customPaletteScope", "applyCustomPalette", "previewBtn", "previewOverlay", "previewImage", "previewDownloadLink", "previewShareBtn"];
 for (const id of requiredControls) {
   if (!html.includes(`id="${id}"`)) throw new Error(`Missing interface control: #${id}`);
 }
@@ -148,7 +148,7 @@ writeFileSync(join(outputRoot, "build-info.json"), `${JSON.stringify({ app: "PRO
 const buildInfoPath = join(outputRoot, "build-info.json");
 const buildInfo = JSON.parse(readFileSync(buildInfoPath, "utf8"));
 if (!js.includes("editingPageId") || !js.includes("MAX_PAGE_NAME_LENGTH = 24") || !js.includes('input.className = "page-name-input"') || !js.includes('button.addEventListener("dblclick"') || !css.includes(".page-name-input")) throw new Error("Inline page naming is incomplete");
-buildInfo.version = "3.37.0";
+buildInfo.version = "3.37.1";
 buildInfo.ratios = 4;
 buildInfo.customCanvasSize = { min: 480, max: 2000, exportScale: 2 };
 buildInfo.customCanvasLayout = "pixel-size-preserving canvas expansion";
@@ -206,6 +206,7 @@ buildInfo.musicIconOutline = true;
 buildInfo.preview = { exactPngPipeline: true, backdrops: ["dark", "light"], fullscreen: true };
 buildInfo.pngExport = { fixedScale: 2, dimensions: { "4:3": "2400x1800", "1:1": "2000x2000", "3:4": "1800x2400" } };
 buildInfo.pngExport.dimensions.custom = "custom width x2 × custom height x2";
+buildInfo.pngExport.delivery = "automatic desktop download with persistent preview link; mobile share or long-press fallback";
 buildInfo.autosave = { primary: "IndexedDB", fallback: "localStorage", visibleFailureNotice: true };
 buildInfo.codeStructure = ["config", "persistence", "output", "utils", "editor-entry"];
 writeFileSync(buildInfoPath, `${JSON.stringify(buildInfo, null, 2)}\n`);

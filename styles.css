@@ -586,7 +586,7 @@ button { cursor: pointer; }
   min-height:42px;
   padding:5px 6px 5px 10px;
   display:grid;
-  grid-template-columns:auto minmax(0,1fr) 34px;
+  grid-template-columns:auto minmax(0,1fr) auto auto 34px;
   align-items:center;
   gap:10px;
   color:#f8f7f2;
@@ -611,6 +611,26 @@ button { cursor: pointer; }
 .preview-swatch.dark { background:#191c18; }
 .preview-swatch.light { background:#fff; }
 .preview-status { overflow:hidden; text-align:center; text-overflow:ellipsis; white-space:nowrap; font-size:11px; opacity:.78; }
+.preview-download,
+.preview-share {
+  min-height:30px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:inherit;
+  border:1px solid rgba(255,255,255,.48);
+  border-radius:4px;
+  background:rgba(255,255,255,.13);
+  font-size:12px;
+  font-weight:700;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.preview-download[hidden],
+.preview-share[hidden] { display:none; }
+.preview-download:hover,
+.preview-share:hover { background:rgba(255,255,255,.22); }
 .preview-close { width:34px; padding:0; font-size:22px; line-height:1; border-radius:4px; }
 .preview-close:hover { background:rgba(255,255,255,.14); }
 .preview-image {
@@ -625,6 +645,21 @@ button { cursor: pointer; }
 }
 .preview-overlay[data-backdrop="light"] .preview-image { border-color:#d5d5d2; box-shadow:0 12px 34px rgba(0,0,0,.18); }
 body.is-previewing { overflow:hidden; }
+
+@media (max-width:720px) {
+  .preview-overlay { padding:154px 12px 12px; }
+  .preview-controls {
+    top:10px;
+    width:calc(100vw - 20px);
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) 34px;
+  }
+  .preview-backdrop-switch { grid-column:1 / -1; justify-content:center; }
+  .preview-status { grid-column:1 / -1; text-align:center; }
+  .preview-download { grid-column:1; width:100%; }
+  .preview-share { grid-column:2; width:100%; }
+  .preview-close { grid-column:3; }
+  .preview-image { max-width:calc(100vw - 24px); max-height:calc(100vh - 166px); }
+}
 
 /* Editor chrome typography only. Canvas/module typography remains untouched. */
 .tool-tab { font-size:13px; }

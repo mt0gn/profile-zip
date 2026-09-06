@@ -7,7 +7,7 @@
   <meta name="description" content="여러 레트로 창을 옮겨 만드는 홈페이지형 프로필 카드 편집기">
   <link rel="icon" type="image/png" href="assets/brand-mark.png?v=profilezip">
   <link rel="apple-touch-icon" href="assets/brand-mark.png?v=profilezip">
-  <link rel="stylesheet" href="styles.css?v=3.36.2">
+  <link rel="stylesheet" href="styles.css?v=3.37.1">
 </head>
 <body>
   <svg class="decoration-symbols" aria-hidden="true" focusable="false">
@@ -191,12 +191,14 @@
         <button type="button" data-preview-backdrop="light" aria-pressed="false"><span class="preview-swatch light"></span>흰 배경</button>
       </div>
       <span id="previewStatus" class="preview-status" aria-live="polite">고화질 미리보기를 만들고 있습니다…</span>
+      <a id="previewDownloadLink" class="preview-download" href="#" download target="_blank" rel="noopener" hidden>PNG 열기 / 저장</a>
+      <button id="previewShareBtn" class="preview-share" type="button" hidden>공유·저장</button>
       <button id="previewCloseBtn" class="preview-close" type="button" aria-label="미리보기 닫기">×</button>
     </div>
     <img id="previewImage" class="preview-image" alt="현재 페이지의 최종 저장 미리보기" hidden>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pixel-icons.js?v=3.36.2"></script>
-  <script type="module" src="app.js?v=3.36.2"></script>
+  <script src="pixel-icons.js?v=3.37.1"></script>
+  <script type="module" src="app.js?v=3.37.1"></script>
 </body>
 </html>

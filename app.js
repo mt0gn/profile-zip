@@ -70,7 +70,7 @@ const dom = {
   toolbox: byId("toolbox"), toolboxTitle: byId("toolboxTitle"), toolboxChrome: byId("toolboxChrome"), contextualEditor: byId("contextualEditor"), contextEditorBack: byId("contextEditorBack"), quickEditor: byId("quickEditor"), defaultWindowStyleGrid: byId("defaultWindowStyleGrid"), toast: byId("toast"),
   freeArrangeBtn: byId("freeArrangeBtn"), alignedArrangeBtn: byId("alignedArrangeBtn"), resetLayoutBtn: byId("resetLayoutBtn"),
   backgroundFitRow: byId("backgroundFitRow"),
-  previewOverlay: byId("previewOverlay"), previewImage: byId("previewImage"), previewStatus: byId("previewStatus"), previewCloseBtn: byId("previewCloseBtn"),
+  previewOverlay: byId("previewOverlay"), previewImage: byId("previewImage"), previewStatus: byId("previewStatus"), previewDownloadLink: byId("previewDownloadLink"), previewShareBtn: byId("previewShareBtn"), previewCloseBtn: byId("previewCloseBtn"),
 };
 
 function currentTheme() { return BACKGROUND_THEMES.find((theme) => theme.id === currentPage().background.themeId) || BACKGROUND_THEMES[0]; }
@@ -1881,9 +1881,118 @@ async function renderStageToBlob() {
     renderCanvas();
   }
 }
-async function exportPng() { try { showToast("PNG를 만들고 있습니다…"); const blob = await renderStageToBlob(); if (!blob) throw new Error("empty"); const dimensions = dimensionsForRatio(); const ratioFilePart = state.ratio === CUSTOM_RATIO ? `custom-${dimensions.width}x${dimensions.height}` : state.ratio.replace(":", "x"); downloadBlob(blob, `${currentPage().name.toLowerCase().replaceAll(" ", "-")}-${ratioFilePart}.png`); showToast("PNG 저장을 시작했습니다."); } catch (error) { console.error(error); showToast("PNG 저장에 실패했습니다."); } }
+
+function pngFilename() {
+  const dimensions = dimensionsForRatio();
+  const ratioFilePart = state.ratio === CUSTOM_RATIO
+    ? `custom-${dimensions.width}x${dimensions.height}`
+    : state.ratio.replace(":", "x");
+  return `${currentPage().name.toLowerCase().replaceAll(" ", "-")}-${ratioFilePart}.png`;
+}
+
+function needsManualImageSave() {
+  const userAgent = navigator.userAgent || "";
+  const touchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return touchMac || /Android|iPhone|iPad|iPod|Mobile|Instagram|FBAN|FBAV|KAKAOTALK|Line\//i.test(userAgent);
+}
+
+function loadPreviewImage(source) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      dom.previewImage.onload = null;
+      dom.previewImage.onerror = null;
+    };
+    dom.previewImage.onload = () => { cleanup(); resolve(); };
+    dom.previewImage.onerror = () => { cleanup(); reject(new Error("preview-image-load")); };
+    dom.previewImage.src = source;
+    if (dom.previewImage.complete && dom.previewImage.naturalWidth > 0) {
+      cleanup();
+      resolve();
+    }
+  });
+}
+
+async function showPngInPreview(blob, { filename, status }) {
+  if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+  previewBlob = blob;
+  previewObjectUrl = URL.createObjectURL(blob);
+  dom.previewDownloadLink.href = previewObjectUrl;
+  dom.previewDownloadLink.download = filename;
+  dom.previewDownloadLink.hidden = false;
+  dom.previewShareBtn.hidden = !canSharePng(blob, filename);
+  await loadPreviewImage(previewObjectUrl);
+  dom.previewImage.hidden = false;
+  dom.previewStatus.textContent = status;
+}
+
+function pngShareFile(blob, filename) {
+  if (!blob || typeof File === "undefined") return null;
+  return new File([blob], filename, { type: "image/png", lastModified: Date.now() });
+}
+
+function canSharePng(blob, filename) {
+  const file = pngShareFile(blob, filename);
+  if (!file || typeof navigator.canShare !== "function") return false;
+  try {
+    return navigator.canShare({ files: [file] });
+  } catch {
+    return false;
+  }
+}
+
+async function sharePreviewPng() {
+  if (!previewBlob) return;
+  const filename = dom.previewDownloadLink.download || pngFilename();
+  const file = pngShareFile(previewBlob, filename);
+  if (file && canSharePng(previewBlob, filename) && typeof navigator.share === "function") {
+    try {
+      await navigator.share({ files: [file], title: "PROFILE.ZIP PNG" });
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error(error);
+    }
+  }
+  if (previewObjectUrl) window.open(previewObjectUrl, "_blank", "noopener");
+}
+
+async function exportPng() {
+  const manualSave = needsManualImageSave();
+  dom.previewOverlay.hidden = false;
+  dom.previewOverlay.setAttribute("aria-busy", "true");
+  dom.previewStatus.textContent = "PNG를 만들고 있습니다…";
+  dom.previewImage.hidden = true;
+  dom.previewDownloadLink.hidden = true;
+  dom.previewShareBtn.hidden = true;
+  document.body.classList.add("is-previewing");
+  try {
+    showToast("PNG를 만들고 있습니다…");
+    const blob = await renderStageToBlob();
+    if (!blob) throw new Error("empty");
+    const filename = pngFilename();
+    await showPngInPreview(blob, {
+      filename,
+      status: manualSave
+        ? "공유·저장 버튼을 누르거나 이미지를 길게 눌러 저장하세요."
+        : "자동 다운로드가 보이지 않으면 PNG 열기 / 저장을 눌러주세요.",
+    });
+    if (manualSave) {
+      showToast("저장할 PNG를 열었습니다.");
+    } else {
+      downloadBlob(blob, filename);
+      showToast("PNG 저장을 시작했습니다. 결과 화면에서도 다시 저장할 수 있습니다.");
+    }
+  } catch (error) {
+    console.error(error);
+    dom.previewStatus.textContent = "PNG를 만들지 못했습니다. 이미지를 줄이거나 다시 시도해 주세요.";
+    showToast("PNG 저장에 실패했습니다.");
+  } finally {
+    dom.previewOverlay.setAttribute("aria-busy", "false");
+  }
+}
 
 let previewObjectUrl;
+let previewBlob;
 async function openPreview() {
   dom.previewOverlay.hidden = false;
   dom.previewOverlay.setAttribute("aria-busy", "true");
@@ -1893,13 +2002,11 @@ async function openPreview() {
   try {
     const blob = await renderStageToBlob();
     if (!blob) throw new Error("empty");
-    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-    previewObjectUrl = URL.createObjectURL(blob);
-    dom.previewImage.src = previewObjectUrl;
-    await dom.previewImage.decode();
-    dom.previewImage.hidden = false;
     const dimensions = dimensionsForRatio();
-    dom.previewStatus.textContent = `${currentPage().name} · ${ratioDisplayLabel()} · ${dimensions.width * EXPORT_SCALE}×${dimensions.height * EXPORT_SCALE}`;
+    await showPngInPreview(blob, {
+      filename: pngFilename(),
+      status: `${currentPage().name} · ${ratioDisplayLabel()} · ${dimensions.width * EXPORT_SCALE}×${dimensions.height * EXPORT_SCALE}`,
+    });
   } catch (error) {
     console.error(error);
     dom.previewStatus.textContent = "미리보기를 만들지 못했습니다.";
@@ -1917,6 +2024,11 @@ function closePreview() {
     previewObjectUrl = null;
     dom.previewImage.removeAttribute("src");
   }
+  dom.previewDownloadLink.hidden = true;
+  dom.previewDownloadLink.removeAttribute("href");
+  dom.previewDownloadLink.removeAttribute("download");
+  dom.previewShareBtn.hidden = true;
+  previewBlob = null;
   dom.previewBtn.focus();
 }
 
@@ -1945,6 +2057,7 @@ function bindEvents() {
   dom.zoomRange.addEventListener("input", () => { state.zoom = Number(dom.zoomRange.value); dom.zoomOutput.value = `${state.zoom}%`; renderCanvas(); }); dom.zoomRange.addEventListener("change", scheduleAutosave);
   dom.undoBtn.addEventListener("click", undo); dom.redoBtn.addEventListener("click", redo); dom.saveProjectBtn.addEventListener("click", saveProject); dom.loadProjectBtn.addEventListener("click", () => dom.projectFileInput.click()); dom.projectFileInput.addEventListener("change", () => dom.projectFileInput.files?.[0] && loadProject(dom.projectFileInput.files[0])); dom.previewBtn.addEventListener("click", openPreview); dom.exportPngBtn.addEventListener("click", exportPng);
   dom.previewCloseBtn.addEventListener("click", closePreview);
+  dom.previewShareBtn.addEventListener("click", sharePreviewPng);
   dom.previewOverlay.addEventListener("click", (event) => { if (event.target === dom.previewOverlay) closePreview(); });
   document.querySelectorAll("[data-preview-backdrop]").forEach((button) => button.addEventListener("click", () => setPreviewBackdrop(button.dataset.previewBackdrop)));
   dom.addPageBtn.addEventListener("click", () => addPage(false)); dom.duplicatePageBtn.addEventListener("click", () => addPage(true)); dom.deletePageBtn.addEventListener("click", deletePage);
